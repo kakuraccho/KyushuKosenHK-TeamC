@@ -1,0 +1,15 @@
+services:
+  backend:
+    build:
+      context: ./backend # backendフォルダをビルドの基準にする
+      dockerfile: Dockerfile
+    container_name: focus_lapse_backend
+    volumes:
+      - ./backend:/app # ローカルの変更をコンテナに即座に反映させる
+    ports:
+      - "8080:8080" # Goサーバーのポート
+    environment:
+      - DB_URL=postgresql://postgres:${SUPABASE_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres # supabaseの接続設定
+    tty: true
+    stdin_open: true
+    restart: always

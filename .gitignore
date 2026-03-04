@@ -1,0 +1,22 @@
+# /backend/.gitignore
+
+# Airの生成物
+/tmp/
+
+# Goのバイナリ
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+backend  # ビルドしてできた実行ファイル名
+
+# 依存関係（通常は共有しない）
+/vendor/
+
+# 環境変数（機密情報！絶対に上げちゃダメだぷ）
+.env
+
+# OS固有のゴミ
+.DS_Store
+Thumbs.db
