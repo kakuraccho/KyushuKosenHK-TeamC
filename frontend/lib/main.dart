@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'constants/app_colors.dart';
+import 'theme/app_theme.dart';
+import 'screens/view/view_screen.dart';
+import 'screens/shoot_screen.dart';
+import 'screens/sns_screen.dart';
+import 'widgets/navigation/main_navigation.dart';
+import 'widgets/navigation/sub_menu_overlay.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,54 +17,82 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: .fromSeed(seedColor: Colors.lightBlue),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      debugShowCheckedModeBanner: false,
+      title: 'Focus Lapse',
+      theme: AppTheme.dark,
+      home: const MainScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-  final String title;
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _MainScreenState extends State<MainScreen> {
+  int _currentIndex = 0;
+  int _viewSubTab = 0; // 0=Pomodoro, 1=Videos
+  bool _showSubMenu = false;
 
-  void _incrementCounter() {
+  void _onNavTap(int index) {
     setState(() {
-      _counter++;
+      if (index == 0 && _currentIndex == 0) {
+        // Already on View → toggle the sub-menu
+        _showSubMenu = !_showSubMenu;
+      } else {
+        _currentIndex = index;
+        _showSubMenu = false;
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      backgroundColor: AppColors.bg,
+      body: Stack(
+        children: [
+          // Main content area
+          IndexedStack(
+            index: _currentIndex,
+            children: [
+              ViewScreen(subTab: _viewSubTab),
+              const ShootScreen(),
+              const SnsScreen(),
+            ],
+          ),
+          // Pomodoro / Videos overlay (slides up above BottomBar)
+          Positioned(
+            bottom: 8,
+            left: 14,
+            right: 14,
+            child: ClipRect(
+              child: AnimatedAlign(
+                heightFactor: _showSubMenu ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                alignment: Alignment.bottomCenter,
+                child: IgnorePointer(
+                  ignoring: !_showSubMenu,
+                  child: SubMenuOverlay(
+                    selectedTab: _viewSubTab,
+                    onTabSelected: (tab) => setState(() {
+                      _viewSubTab = tab;
+                      _showSubMenu = false;
+                    }),
+                  ),
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onNavTap,
       ),
     );
   }
