@@ -39,14 +39,19 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onNavTap(int index) {
     setState(() {
-      if (index == 0 && _currentIndex == 0) {
-        // Already on View → toggle the sub-menu
+      if (index == 0) {
+        // View tapped: show overlay on the current screen (don't navigate yet).
+        // Navigation to View happens only after the user picks Pomodoro or Videos.
         _showSubMenu = !_showSubMenu;
       } else {
         _currentIndex = index;
         _showSubMenu = false;
       }
     });
+  }
+
+  void _dismissOverlay() {
+    setState(() => _showSubMenu = false);
   }
 
   @override
@@ -64,11 +69,19 @@ class _MainScreenState extends State<MainScreen> {
               const SnsScreen(),
             ],
           ),
+          // Tap-outside barrier: dismisses overlay when tapping content area
+          if (_showSubMenu)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _dismissOverlay,
+                behavior: HitTestBehavior.opaque,
+                child: const SizedBox.expand(),
+              ),
+            ),
           // Pomodoro / Videos overlay (slides up above BottomBar)
           Positioned(
             bottom: 8,
             left: 14,
-            right: 14,
             child: ClipRect(
               child: AnimatedAlign(
                 heightFactor: _showSubMenu ? 1.0 : 0.0,
@@ -78,9 +91,10 @@ class _MainScreenState extends State<MainScreen> {
                 child: IgnorePointer(
                   ignoring: !_showSubMenu,
                   child: SubMenuOverlay(
-                    selectedTab: _viewSubTab,
+                    selectedTab: _currentIndex == 0 ? _viewSubTab : -1,
                     onTabSelected: (tab) => setState(() {
                       _viewSubTab = tab;
+                      _currentIndex = 0; // navigate to View after picking
                       _showSubMenu = false;
                     }),
                   ),

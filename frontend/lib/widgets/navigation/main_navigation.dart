@@ -25,7 +25,7 @@ class BottomNavBar extends StatelessWidget {
                 index: 0,
                 current: currentIndex,
                 onTap: onTap,
-                icon: Icons.schedule_outlined,
+                icon: Icons.remove_red_eye,
                 label: 'View',
               ),
               _NavItem(
