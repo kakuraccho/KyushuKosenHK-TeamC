@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'constants/app_colors.dart';
+import 'core/supabase/supabase_client.dart';
 import 'theme/app_theme.dart';
 import 'screens/view/view_screen.dart';
 import 'screens/shoot_screen.dart';
@@ -13,12 +13,11 @@ import 'widgets/navigation/sub_menu_overlay.dart';
 import 'core/supabase/supabase_client.dart';
 import 'features/shoot/notification_service.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
   await initializeSupabase();
-  await NotificationService.init();
-  debugPrint('supabase connected ${supabase.auth.currentSession}');
+  debugPrint('supabase connected: ${supabase.auth.currentSession}');
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -73,17 +72,14 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onNavTap(int index) {
     setState(() {
-      if (index == 0) {
+      if (index == 0 && _currentIndex == 0) {
+        // Already on View → toggle the sub-menu
         _showSubMenu = !_showSubMenu;
       } else {
         _currentIndex = index;
         _showSubMenu = false;
       }
     });
-  }
-
-  void _dismissOverlay() {
-    setState(() => _showSubMenu = false);
   }
 
   @override
@@ -100,17 +96,11 @@ class _MainScreenState extends State<MainScreen> {
               const SnsScreen(),
             ],
           ),
-          if (_showSubMenu)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: _dismissOverlay,
-                behavior: HitTestBehavior.opaque,
-                child: const SizedBox.expand(),
-              ),
-            ),
+          // Pomodoro / Videos overlay (slides up above BottomBar)
           Positioned(
             bottom: 8,
             left: 14,
+            right: 14,
             child: ClipRect(
               child: AnimatedAlign(
                 heightFactor: _showSubMenu ? 1.0 : 0.0,
@@ -120,10 +110,9 @@ class _MainScreenState extends State<MainScreen> {
                 child: IgnorePointer(
                   ignoring: !_showSubMenu,
                   child: SubMenuOverlay(
-                    selectedTab: _currentIndex == 0 ? _viewSubTab : -1,
+                    selectedTab: _viewSubTab,
                     onTabSelected: (tab) => setState(() {
                       _viewSubTab = tab;
-                      _currentIndex = 0;
                       _showSubMenu = false;
                     }),
                   ),

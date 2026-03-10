@@ -48,4 +48,6 @@ app.*.map.json
 /.claude
 CLAUDE.md
 
+
+# environment variables
 .env

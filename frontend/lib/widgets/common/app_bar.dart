@@ -15,7 +15,6 @@ class FocusAppBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 5, 14, 0),
         child: Container(
           height: 72,
-          width: double.infinity,
           decoration: BoxDecoration(
             color: AppColors.surfaceContainer,
             borderRadius: BorderRadius.circular(36),
