@@ -111,8 +111,9 @@ class _MainScreenState extends State<MainScreen> {
 
   void _onNavTap(int index) {
     setState(() {
-      if (index == 0 && _currentIndex == 0) {
-        // Already on View → toggle the sub-menu
+      if (index == 0) {
+        // View タップ: 現在のタブに関わらずサブメニューをトグル
+        // 他タブからでもオーバーレイで選択してから遷移させる
         _showSubMenu = !_showSubMenu;
       } else {
         _currentIndex = index;
@@ -131,27 +132,35 @@ class _MainScreenState extends State<MainScreen> {
             index: _currentIndex,
             children: [
               ViewScreen(subTab: _viewSubTab),
-              const ShootScreen(),
+              ShootScreen(isActive: _currentIndex == 1),
               const SnsScreen(),
             ],
           ),
+          // オーバーレイ表示中は背面タップで閉じる
+          if (_showSubMenu)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => setState(() => _showSubMenu = false),
+                behavior: HitTestBehavior.translucent,
+              ),
+            ),
           // Pomodoro / Videos overlay (slides up above BottomBar)
           Positioned(
             bottom: 8,
             left: 14,
-            right: 14,
             child: ClipRect(
               child: AnimatedAlign(
                 heightFactor: _showSubMenu ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 250),
                 curve: Curves.easeInOut,
-                alignment: Alignment.bottomCenter,
+                alignment: Alignment.bottomLeft,
                 child: IgnorePointer(
                   ignoring: !_showSubMenu,
                   child: SubMenuOverlay(
                     selectedTab: _viewSubTab,
                     onTabSelected: (tab) => setState(() {
                       _viewSubTab = tab;
+                      _currentIndex = 0;
                       _showSubMenu = false;
                     }),
                   ),

@@ -7,7 +7,9 @@ import '../widgets/common/app_bar.dart';
 import '../features/shoot/pomodoro_provider.dart';
 
 class ShootScreen extends ConsumerStatefulWidget {
-  const ShootScreen({super.key});
+  const ShootScreen({super.key, required this.isActive});
+
+  final bool isActive;
 
   @override
   ConsumerState<ShootScreen> createState() => _ShootScreenState();
@@ -17,15 +19,38 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
   CameraController? _cameraController;
   bool _isInitialized = false;
   bool _isRecording = false;
+  bool _isPaused = false;
   Timer? _captureTimer;
 
   @override
   void initState() {
     super.initState();
+    // 常にバックグラウンドで初期化しておき、非アクティブ時はすぐpauseする。
+    // これにより初回タブ表示時の待ち時間を最小化する。
     _initCamera();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(pomodoroProvider.notifier).start();
-    });
+  }
+
+  @override
+  void didUpdateWidget(ShootScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      // pause済みのときだけ resumePreview を呼ぶ。
+      // 初回遷移時は一度も pause していないため、呼ぶと例外が出る。
+      if (_isPaused) {
+        _cameraController?.resumePreview();
+        _isPaused = false;
+      }
+    } else if (!widget.isActive && oldWidget.isActive) {
+      // タブが非アクティブになったら映像ストリームのみ停止。
+      // dispose せず pausePreview するだけなので、Texture へのフレーム更新が止まり
+      // 他画面のちらつきが解消される。再開も resumePreview で即座に戻る。
+      _captureTimer?.cancel();
+      _captureTimer = null;
+      if (mounted) setState(() => _isRecording = false);
+      ref.read(pomodoroProvider.notifier).stop();
+      _cameraController?.pausePreview();
+      _isPaused = true;
+    }
   }
 
   Future<void> _initCamera() async {
@@ -60,6 +85,7 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
 
   void _startCapture() {
     setState(() => _isRecording = true);
+    ref.read(pomodoroProvider.notifier).start();
     _captureTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       final controller = _cameraController;
       if (controller == null || !controller.value.isInitialized) return;
@@ -76,6 +102,7 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
     _captureTimer?.cancel();
     _captureTimer = null;
     setState(() => _isRecording = false);
+    ref.read(pomodoroProvider.notifier).stop();
   }
 
   @override
@@ -95,43 +122,102 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(28),
-              child: _isInitialized
-                  ? CameraPreview(_cameraController!)
-                  : Container(color: AppColors.thumbnailBg),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _isInitialized
+                      ? CameraPreview(_cameraController!)
+                      : const ColoredBox(color: AppColors.thumbnailBg),
+                  const Positioned(
+                    right: 12,
+                    bottom: 12,
+                    child: _PomodoroTimer(),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-        Container(
-          color: AppColors.bg,
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Center(
-            child: GestureDetector(
-              onTap: _toggleRecording,
-              child: Container(
-                width: 96,
-                height: 96,
-                decoration: const BoxDecoration(
-                  color: AppColors.secondaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: _isRecording ? 32 : 40,
-                    height: _isRecording ? 32 : 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.onSecondaryContainer,
-                      borderRadius: _isRecording
-                          ? BorderRadius.circular(6)
-                          : BorderRadius.circular(20),
-                    ),
+        _RecordButtonBar(
+          isRecording: _isRecording,
+          onTap: _toggleRecording,
+        ),
+      ],
+    );
+  }
+}
+
+class _PomodoroTimer extends ConsumerWidget {
+  const _PomodoroTimer();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final seconds = ref.watch(pomodoroProvider);
+    final mm = (seconds ~/ 60).toString().padLeft(2, '0');
+    final ss = (seconds % 60).toString().padLeft(2, '0');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '$mm:$ss',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+/// ボタン部分を別ウィジェットに分離することで、_isRecording 変化時に
+/// カメラプレビュー側が rebuild されるのを防ぐ。
+class _RecordButtonBar extends StatelessWidget {
+  const _RecordButtonBar({
+    required this.isRecording,
+    required this.onTap,
+  });
+
+  final bool isRecording;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: AppColors.bg,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 96,
+              height: 96,
+              decoration: const BoxDecoration(
+                color: AppColors.secondaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: isRecording ? 32 : 40,
+                  height: isRecording ? 32 : 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.onSecondaryContainer,
+                    borderRadius: isRecording
+                        ? BorderRadius.circular(6)
+                        : BorderRadius.circular(20),
                   ),
                 ),
               ),
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

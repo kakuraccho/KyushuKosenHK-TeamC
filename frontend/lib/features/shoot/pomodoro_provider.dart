@@ -11,6 +11,8 @@ class PomodoroNotifier extends StateNotifier<int> {
 
   PomodoroNotifier(this._ref) : super(_pomoDurationSec);
 
+  bool get isRunning => _timer != null;
+
   void start() {
     _timer?.cancel();
     state = _pomoDurationSec;
