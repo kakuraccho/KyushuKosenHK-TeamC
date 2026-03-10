@@ -31,73 +31,80 @@ class _SnsScreenState extends ConsumerState<SnsScreen> {
         Expanded(
           child: Stack(
             children: [
-              feedAsync.when(
-                loading: () => const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.secondary,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: feedAsync.when(
+                  loading: () => const Center(
+                    key: ValueKey('loading'),
+                    child: CircularProgressIndicator(
+                      color: AppColors.secondary,
+                    ),
                   ),
-                ),
-                error: (error, _) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Failed to load feed',
+                  error: (error, _) => Center(
+                    key: const ValueKey('error'),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Failed to load feed',
+                            style: TextStyle(
+                              color: AppColors.onSurface,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            error.toString(),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () =>
+                                ref.read(feedProvider.notifier).refresh(),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.secondaryContainer,
+                              foregroundColor: AppColors.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  data: (posts) {
+                    if (posts.isEmpty) {
+                      return const Center(
+                        key: ValueKey('empty'),
+                        child: Text(
+                          'No posts yet',
                           style: TextStyle(
-                            color: AppColors.onSurface,
+                            color: AppColors.onSurfaceVariant,
                             fontSize: 16,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          error.toString(),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () =>
-                              ref.read(feedProvider.notifier).refresh(),
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.secondaryContainer,
-                            foregroundColor: AppColors.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                data: (posts) {
-                  if (posts.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No posts yet',
-                        style: TextStyle(
-                          color: AppColors.onSurfaceVariant,
-                          fontSize: 16,
-                        ),
+                      );
+                    }
+                    return Padding(
+                      key: const ValueKey('data'),
+                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+                      child: PageView.builder(
+                        controller: _pageController,
+                        scrollDirection: Axis.vertical,
+                        itemCount: posts.length,
+                        itemBuilder: (context, index) {
+                          return _PostCard(post: posts[index]);
+                        },
                       ),
                     );
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
-                    child: PageView.builder(
-                      controller: _pageController,
-                      scrollDirection: Axis.vertical,
-                      itemCount: posts.length,
-                      itemBuilder: (context, index) {
-                        return _PostCard(post: posts[index]);
-                      },
-                    ),
-                  );
-                },
+                  },
+                ),
               ),
               Positioned(
                 bottom: 24,
@@ -114,7 +121,7 @@ class _SnsScreenState extends ConsumerState<SnsScreen> {
                         borderRadius:
                             BorderRadius.vertical(top: Radius.circular(20)),
                       ),
-                      builder: (_) => _PostFormBottomSheet(ref: ref),
+                      builder: (_) => const _PostFormBottomSheet(),
                     );
                   },
                   child: const Icon(Icons.add),
@@ -311,16 +318,15 @@ class _ReelAction extends StatelessWidget {
   }
 }
 
-class _PostFormBottomSheet extends StatefulWidget {
-  const _PostFormBottomSheet({required this.ref});
-
-  final WidgetRef ref;
+class _PostFormBottomSheet extends ConsumerStatefulWidget {
+  const _PostFormBottomSheet();
 
   @override
-  State<_PostFormBottomSheet> createState() => _PostFormBottomSheetState();
+  ConsumerState<_PostFormBottomSheet> createState() =>
+      _PostFormBottomSheetState();
 }
 
-class _PostFormBottomSheetState extends State<_PostFormBottomSheet> {
+class _PostFormBottomSheetState extends ConsumerState<_PostFormBottomSheet> {
   final _commentController = TextEditingController();
   String _visibility = 'public';
   bool _videoSelected = false;
@@ -339,7 +345,7 @@ class _PostFormBottomSheetState extends State<_PostFormBottomSheet> {
     setState(() => _isSubmitting = true);
 
     try {
-      await widget.ref.read(feedProvider.notifier).createPost(
+      await ref.read(feedProvider.notifier).createPost(
             comment: comment,
             visibility: _visibility,
             videoUrl: _videoSelected ? 'mock_video.mp4' : null,

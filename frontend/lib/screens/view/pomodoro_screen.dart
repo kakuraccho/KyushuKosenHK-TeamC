@@ -45,12 +45,19 @@ class PomodoroView extends StatelessWidget {
   }
 }
 
-// Connected button group: Week / Month / Year (display only)
-class _WeekMonthYearToggle extends StatelessWidget {
+class _WeekMonthYearToggle extends StatefulWidget {
   const _WeekMonthYearToggle();
 
   @override
+  State<_WeekMonthYearToggle> createState() => _WeekMonthYearToggleState();
+}
+
+class _WeekMonthYearToggleState extends State<_WeekMonthYearToggle> {
+  int _selected = 0; // 0=Week, 1=Month, 2=Year
+
+  @override
   Widget build(BuildContext context) {
+    const labels = ['Week', 'Month', 'Year'];
     return Container(
       height: 71,
       decoration: BoxDecoration(
@@ -58,70 +65,36 @@ class _WeekMonthYearToggle extends StatelessWidget {
         borderRadius: BorderRadius.circular(35),
       ),
       child: Row(
-        children: [
-          // Week – selected
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(35),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                'Week',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.1,
-                  color: AppColors.onSecondary,
+        children: List.generate(labels.length, (index) {
+          final isSelected = _selected == index;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selected = index),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.secondary
+                      : AppColors.secondaryContainer,
+                  borderRadius: BorderRadius.circular(isSelected ? 35 : 20),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  labels[index],
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.1,
+                    color: isSelected
+                        ? AppColors.onSecondary
+                        : AppColors.onSecondaryContainer,
+                  ),
                 ),
               ),
             ),
-          ),
-          // Month – unselected
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.secondaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                'Month',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.1,
-                  color: AppColors.onSecondaryContainer,
-                ),
-              ),
-            ),
-          ),
-          // Year – unselected (right outer corners round)
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.secondaryContainer,
-                borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(35),
-                  bottomRight: Radius.circular(35),
-                  topLeft: Radius.circular(8),
-                  bottomLeft: Radius.circular(8),
-                ),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                'Year',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.1,
-                  color: AppColors.onSecondaryContainer,
-                ),
-              ),
-            ),
-          ),
-        ],
+          );
+        }),
       ),
     );
   }
