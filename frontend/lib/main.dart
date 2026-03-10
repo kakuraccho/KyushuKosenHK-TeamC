@@ -10,19 +10,46 @@ import 'screens/sns_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'widgets/navigation/main_navigation.dart';
 import 'widgets/navigation/sub_menu_overlay.dart';
-import 'core/supabase/supabase_client.dart';
-import 'features/shoot/notification_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // warm-up frame が旧ウィジェットツリーを描画する前にローディング画面に差し替える
+  runApp(const _SplashApp());
+
   await dotenv.load(fileName: '.env');
-  await initializeSupabase();
-  debugPrint('supabase connected: ${supabase.auth.currentSession}');
-  runApp(const ProviderScope(child: MyApp()));
+
+  String? initError;
+  try {
+    await initializeSupabase();
+    debugPrint('supabase connected: ${supabase.auth.currentSession}');
+  } catch (e, st) {
+    initError = e.toString();
+    debugPrint('Supabase init failed: $e\n$st');
+  }
+
+  runApp(ProviderScope(child: MyApp(initError: initError)));
+}
+
+class _SplashApp extends StatelessWidget {
+  const _SplashApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Color(0xFF121212),
+        body: Center(child: CircularProgressIndicator()),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String? initError;
+  const MyApp({super.key, this.initError});
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +57,19 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Focus Lapse',
       theme: AppTheme.dark,
-      home: const AuthGate(),
+      home: initError != null
+          ? Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Supabase 初期化エラー:\n$initError',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+              ),
+            )
+          : const AuthGate(),
     );
   }
 }

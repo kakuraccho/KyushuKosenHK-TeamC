@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../features/auth/auth_repository.dart';
 import 'signup_screen.dart';
+import '../../main.dart' show MainScreen;
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -103,6 +104,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   MaterialPageRoute(builder: (_) => const SignupScreen()),
                 ),
                 child: const Text('アカウントを作成'),
+              ),
+              const SizedBox(height: 32),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const MainScreen()),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey,
+                  side: const BorderSide(color: Colors.grey),
+                ),
+                child: const Text('認証をスキップ（開発用）'),
               ),
             ],
           ),
