@@ -30,11 +30,11 @@ func (h *UserHandler) GetSettings(c *gin.Context) {
 }
 
 type updateSettingsRequest struct {
-	TimePomodoro       int  `json:"time_pomodoro"`
-	TimeShortBreak     int  `json:"time_short_break"`
-	TimeLongBreak      int  `json:"time_long_break"`
+	TimePomodoro       int  `json:"time_pomodoro" binding:"min=1"`
+	TimeShortBreak     int  `json:"time_short_break" binding:"min=1"`
+	TimeLongBreak      int  `json:"time_long_break" binding:"min=1"`
 	IsAutoStartSession bool `json:"is_auto_start_session"`
-	LongBreakInterval  int  `json:"long_break_interval"`
+	LongBreakInterval  int  `json:"long_break_interval" binding:"min=1"`
 }
 
 func (h *UserHandler) UpdateSettings(c *gin.Context) {
@@ -56,7 +56,7 @@ func (h *UserHandler) UpdateSettings(c *gin.Context) {
 	}
 
 	if err := h.userSvc.UpdateSettings(c.Request.Context(), settings); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleServiceError(c, err)
 		return
 	}
 

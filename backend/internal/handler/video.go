@@ -9,6 +9,8 @@ import (
 	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/service"
 )
 
+const maxVideoSize = 100 << 20 // 100MB
+
 type VideoHandler struct {
 	videoSvc *service.VideoService
 }
@@ -20,6 +22,8 @@ func NewVideoHandler(videoSvc *service.VideoService) *VideoHandler {
 func (h *VideoHandler) Upload(c *gin.Context) {
 	userID := c.MustGet("user_id").(uuid.UUID)
 
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxVideoSize)
+
 	file, header, err := c.Request.FormFile("video")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "video file required"})
@@ -29,13 +33,13 @@ func (h *VideoHandler) Upload(c *gin.Context) {
 
 	data, err := io.ReadAll(file)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file too large or unreadable"})
 		return
 	}
 
 	video, err := h.videoSvc.Upload(c.Request.Context(), userID, header.Filename, data)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleServiceError(c, err)
 		return
 	}
 
@@ -47,7 +51,7 @@ func (h *VideoHandler) List(c *gin.Context) {
 
 	videos, err := h.videoSvc.List(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleServiceError(c, err)
 		return
 	}
 

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/ecdsa"
 	"net/http"
 	"strings"
 
@@ -9,7 +10,8 @@ import (
 	"github.com/google/uuid"
 )
 
-func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
+// AuthMiddleware は Supabase が発行した ES256 JWT を検証する。
+func AuthMiddleware(pubKey *ecdsa.PublicKey) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -23,12 +25,11 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
-		tokenStr := parts[1]
-		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+		token, err := jwt.Parse(parts[1], func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodECDSA); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return []byte(jwtSecret), nil
+			return pubKey, nil
 		})
 		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})

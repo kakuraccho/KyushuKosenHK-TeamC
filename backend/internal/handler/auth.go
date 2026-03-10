@@ -41,7 +41,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		Email: req.Email,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleServiceError(c, err)
 		return
 	}
 

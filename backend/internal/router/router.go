@@ -1,6 +1,8 @@
 package router
 
 import (
+	"crypto/ecdsa"
+
 	"github.com/gin-gonic/gin"
 	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/handler"
 	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/middleware"
@@ -15,7 +17,7 @@ type Handlers struct {
 	Friend  *handler.FriendHandler
 }
 
-func NewRouter(h Handlers, jwtSecret string) *gin.Engine {
+func NewRouter(h Handlers, pubKey *ecdsa.PublicKey) *gin.Engine {
 	r := gin.Default()
 
 	v1 := r.Group("/api/v1")
@@ -28,7 +30,7 @@ func NewRouter(h Handlers, jwtSecret string) *gin.Engine {
 
 	// 認証必要
 	protected := v1.Group("")
-	protected.Use(middleware.AuthMiddleware(jwtSecret))
+	protected.Use(middleware.AuthMiddleware(pubKey))
 	{
 		// ユーザー設定
 		users := protected.Group("/users/me")

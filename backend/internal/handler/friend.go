@@ -35,9 +35,14 @@ func (h *FriendHandler) SendRequest(c *gin.Context) {
 		return
 	}
 
+	if userID == followingID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot send friend request to yourself"})
+		return
+	}
+
 	f, err := h.friendSvc.SendRequest(c.Request.Context(), userID, followingID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleServiceError(c, err)
 		return
 	}
 
@@ -49,7 +54,7 @@ func (h *FriendHandler) ListPendingRequests(c *gin.Context) {
 
 	requests, err := h.friendSvc.ListPendingRequests(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleServiceError(c, err)
 		return
 	}
 
@@ -76,7 +81,11 @@ func (h *FriendHandler) RespondToRequest(c *gin.Context) {
 	}
 
 	if err := h.friendSvc.RespondToRequest(c.Request.Context(), id, userID, req.Accept); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if err.Error() == "unauthorized" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "not your request to respond to"})
+			return
+		}
+		handleServiceError(c, err)
 		return
 	}
 
@@ -88,7 +97,7 @@ func (h *FriendHandler) ListFriends(c *gin.Context) {
 
 	friends, err := h.friendSvc.ListFriends(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleServiceError(c, err)
 		return
 	}
 

@@ -40,7 +40,13 @@ func (h *PostHandler) Create(c *gin.Context) {
 
 	visibility := model.VisibilityPublic
 	if req.Visibility != "" {
-		visibility = model.VisibilityType(req.Visibility)
+		switch model.VisibilityType(req.Visibility) {
+		case model.VisibilityPublic, model.VisibilityFriends, model.VisibilityPrivate:
+			visibility = model.VisibilityType(req.Visibility)
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "visibility must be public, friends, or private"})
+			return
+		}
 	}
 
 	var content *string
@@ -55,7 +61,15 @@ func (h *PostHandler) Create(c *gin.Context) {
 		Visibility: visibility,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if err.Error() == "forbidden: video does not belong to you" {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		if err.Error() == "video not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		handleServiceError(c, err)
 		return
 	}
 
@@ -67,7 +81,7 @@ func (h *PostHandler) Feed(c *gin.Context) {
 
 	posts, err := h.postSvc.Feed(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleServiceError(c, err)
 		return
 	}
 

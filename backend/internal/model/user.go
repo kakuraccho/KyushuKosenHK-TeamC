@@ -14,10 +14,10 @@ type User struct {
 }
 
 type UserSettings struct {
-	UserID              uuid.UUID `json:"user_id"`
-	TimePomodoro        int       `json:"time_pomodoro"`
-	TimeShortBreak      int       `json:"time_short_break"`
-	TimeLongBreak       int       `json:"time_long_break"`
-	IsAutoStartSession  bool      `json:"is_auto_start_session"`
-	LongBreakInterval   int       `json:"long_break_interval"`
+	UserID             uuid.UUID `json:"user_id"`
+	TimePomodoro       int       `json:"time_pomodoro"`
+	TimeShortBreak     int       `json:"time_short_break"`
+	TimeLongBreak      int       `json:"time_long_break"`
+	IsAutoStartSession bool      `json:"is_auto_start_session"`
+	LongBreakInterval  int       `json:"long_break_interval"`
 }

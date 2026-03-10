@@ -36,7 +36,7 @@ func (h *SessionHandler) Create(c *gin.Context) {
 		IsCompleted: req.IsCompleted,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleServiceError(c, err)
 		return
 	}
 
@@ -48,7 +48,7 @@ func (h *SessionHandler) List(c *gin.Context) {
 
 	sessions, err := h.sessionSvc.List(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handleServiceError(c, err)
 		return
 	}
 
