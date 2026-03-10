@@ -7,8 +7,11 @@ import 'theme/app_theme.dart';
 import 'screens/view/view_screen.dart';
 import 'screens/shoot_screen.dart';
 import 'screens/sns_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'widgets/navigation/main_navigation.dart';
 import 'widgets/navigation/sub_menu_overlay.dart';
+import 'core/supabase/supabase_client.dart';
+import 'features/shoot/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +30,30 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Focus Lapse',
       theme: AppTheme.dark,
-      home: const MainScreen(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: supabase.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        final session = supabase.auth.currentSession;
+        if (session != null) {
+          return const MainScreen();
+        }
+        return const LoginScreen();
+      },
     );
   }
 }
@@ -62,7 +88,6 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: AppColors.bg,
       body: Stack(
         children: [
-          // Main content area
           IndexedStack(
             index: _currentIndex,
             children: [
