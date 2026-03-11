@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,7 +31,10 @@ func (s *PostService) Create(ctx context.Context, input CreatePostInput) (*model
 	// 動画のオーナーシップ確認
 	video, err := s.videoRepo.FindByID(ctx, input.VideoID)
 	if err != nil {
-		return nil, ErrVideoNotFound
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrVideoNotFound
+		}
+		return nil, err
 	}
 	if video.UserID != input.UserID {
 		return nil, ErrVideoForbidden
@@ -57,7 +61,10 @@ func (s *PostService) Feed(ctx context.Context, userID uuid.UUID) ([]*model.Post
 func (s *PostService) Get(ctx context.Context, id, requesterID uuid.UUID) (*model.Post, error) {
 	post, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, ErrPostNotFound
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, ErrPostNotFound
+		}
+		return nil, err
 	}
 
 	switch post.Visibility {
@@ -68,7 +75,10 @@ func (s *PostService) Get(ctx context.Context, id, requesterID uuid.UUID) (*mode
 	case model.VisibilityFriends:
 		if post.UserID != requesterID {
 			ok, err := s.friendRepo.AreFriends(ctx, requesterID, post.UserID)
-			if err != nil || !ok {
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
 				return nil, ErrPostForbidden
 			}
 		}
@@ -80,7 +90,10 @@ func (s *PostService) Get(ctx context.Context, id, requesterID uuid.UUID) (*mode
 func (s *PostService) Delete(ctx context.Context, userID, postID uuid.UUID) error {
 	post, err := s.repo.FindByID(ctx, postID)
 	if err != nil {
-		return ErrPostNotFound
+		if errors.Is(err, repository.ErrNotFound) {
+			return ErrPostNotFound
+		}
+		return err
 	}
 	if post.UserID != userID {
 		return ErrPostForbidden

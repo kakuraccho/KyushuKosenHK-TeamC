@@ -45,7 +45,8 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "failed to connect to database: %v\n", err)
 		os.Exit(1)
 	}
-	defer testDB.Close()
 
-	os.Exit(m.Run())
+	code := m.Run()
+	testDB.Close()
+	os.Exit(code)
 }

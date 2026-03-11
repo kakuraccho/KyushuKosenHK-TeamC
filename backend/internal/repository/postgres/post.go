@@ -2,10 +2,13 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/model"
+	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/repository"
 )
 
 type postRepository struct {
@@ -66,6 +69,9 @@ func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pos
 		 FROM posts WHERE id = $1`, id,
 	).Scan(&p.ID, &p.UserID, &p.VideoID, &p.Content, &p.Visibility, &p.CreatedAt)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, repository.ErrNotFound
+		}
 		return nil, err
 	}
 	return p, nil

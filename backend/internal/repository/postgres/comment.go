@@ -2,10 +2,13 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/model"
+	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/repository"
 )
 
 type commentRepository struct {
@@ -53,6 +56,9 @@ func (r *commentRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.
 		 FROM comments WHERE id = $1`, id,
 	).Scan(&c.ID, &c.PostID, &c.UserID, &c.Content, &c.CreatedAt)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, repository.ErrNotFound
+		}
 		return nil, err
 	}
 	return c, nil

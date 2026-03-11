@@ -2,10 +2,13 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/model"
+	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/repository"
 )
 
 type videoRepository struct {
@@ -53,6 +56,9 @@ func (r *videoRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Vi
 		 FROM videos WHERE id = $1`, id,
 	).Scan(&v.ID, &v.UserID, &v.StorageURL, &v.ThumbnailURL, &v.Duration, &v.CreatedAt)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, repository.ErrNotFound
+		}
 		return nil, err
 	}
 	return v, nil

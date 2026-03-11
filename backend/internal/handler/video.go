@@ -2,8 +2,10 @@ package handler
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -34,7 +36,15 @@ func (h *VideoHandler) Upload(c *gin.Context) {
 
 	file, header, err := c.Request.FormFile("video")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "video file required"})
+		msg := err.Error()
+		switch {
+		case strings.Contains(msg, "request body too large") || strings.Contains(msg, "multipart: message too large"):
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file exceeds maximum allowed size"})
+		case strings.Contains(msg, "multipart:") || strings.Contains(msg, "unexpected EOF"):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "malformed multipart body"})
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "video file required"})
+		}
 		return
 	}
 	defer file.Close()
@@ -75,15 +85,24 @@ func (h *VideoHandler) List(c *gin.Context) {
 }
 
 func (h *VideoHandler) Get(c *gin.Context) {
+	userID := c.MustGet("user_id").(uuid.UUID)
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
 
-	video, err := h.videoSvc.Get(c.Request.Context(), id)
+	video, err := h.videoSvc.Get(c.Request.Context(), id, userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "video not found"})
+		switch {
+		case errors.Is(err, service.ErrVideoNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "video not found"})
+		case errors.Is(err, service.ErrVideoForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		default:
+			handleServiceError(c, err)
+		}
 		return
 	}
 

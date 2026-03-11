@@ -3,8 +3,13 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -55,6 +60,13 @@ func main() {
 	}
 	defer db.Close()
 
+	// 起動時に DB への疎通確認
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer pingCancel()
+	if err := db.Ping(pingCtx); err != nil {
+		log.Fatalf("database ping failed: %v", err)
+	}
+
 	// Repository
 	userRepo := postgres.NewUserRepository(db)
 	sessionRepo := postgres.NewSessionRepository(db)
@@ -86,9 +98,34 @@ func main() {
 	}
 
 	r := router.NewRouter(handlers, keys, expectedIssuer, expectedAudience)
-	log.Printf("server starting on :%s", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("server error: %v", err)
+
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
+	// サーバーをゴルーチンで起動
+	go func() {
+		log.Printf("server starting on :%s", port)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	// SIGINT / SIGTERM でグレースフルシャットダウン
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("shutting down server...")
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("server shutdown error: %v", err)
 	}
 }
 

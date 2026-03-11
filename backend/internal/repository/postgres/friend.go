@@ -2,11 +2,13 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/model"
+	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/repository"
 )
 
 type friendRepository struct {
@@ -55,6 +57,9 @@ func (r *friendRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.F
 		 FROM friendships WHERE id = $1`, id,
 	).Scan(&f.ID, &f.FollowerID, &f.FollowingID, &f.Status, &f.CreatedAt)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, repository.ErrNotFound
+		}
 		return nil, err
 	}
 	return f, nil
