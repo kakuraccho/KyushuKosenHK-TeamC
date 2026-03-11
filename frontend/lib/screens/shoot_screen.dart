@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_colors.dart';
 import '../debug/captured_image_viewer.dart';
+import '../core/camera/camera_cache.dart';
 import '../widgets/common/app_bar.dart';
 import '../features/shoot/pomodoro_provider.dart';
 
@@ -80,18 +81,6 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
     } catch (e) {
       debugPrint('Camera init error: $e');
     }
-  }
-
-  Future<void> _disposeCamera() async {
-    final controller = _cameraController;
-    if (mounted) {
-      setState(() {
-        _cameraController = null;
-        _isInitialized = false;
-        _isRecording = false;
-      });
-    }
-    await controller?.dispose();
   }
 
   void _toggleRecording() {

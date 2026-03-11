@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'constants/app_colors.dart';
+import 'core/camera/camera_cache.dart';
 import 'core/supabase/supabase_client.dart';
 import 'theme/app_theme.dart';
 import 'screens/view/view_screen.dart';
@@ -21,14 +22,22 @@ void main() async {
 
   await dotenv.load(fileName: '.env');
 
+  // Supabase 初期化とカメラリスト取得を並列で実行
   String? initError;
-  try {
-    await initializeSupabase();
-    debugPrint('supabase connected: ${supabase.auth.currentSession}');
-  } catch (e, st) {
-    initError = e.toString();
-    debugPrint('Supabase init failed: $e\n$st');
-  }
+  await Future.wait([
+    initializeSupabase().then((_) {
+      debugPrint('supabase connected: ${supabase.auth.currentSession}');
+    }).catchError((e, st) {
+      initError = e.toString();
+      debugPrint('Supabase init failed: $e\n$st');
+    }),
+    availableCameras().then((cameras) {
+      cachedCameras = cameras;
+      debugPrint('cameras cached: ${cameras.length}');
+    }).catchError((e) {
+      debugPrint('Camera list failed: $e');
+    }),
+  ]);
 
   runApp(ProviderScope(child: MyApp(initError: initError)));
 }
