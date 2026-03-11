@@ -18,7 +18,7 @@ type Handlers struct {
 	Friend  *handler.FriendHandler
 }
 
-func NewRouter(h Handlers, pubKey *ecdsa.PublicKey) *gin.Engine {
+func NewRouter(h Handlers, keys map[string]*ecdsa.PublicKey, expectedIssuer, expectedAudience string) *gin.Engine {
 	r := gin.Default()
 
 	v1 := r.Group("/api/v1")
@@ -31,7 +31,7 @@ func NewRouter(h Handlers, pubKey *ecdsa.PublicKey) *gin.Engine {
 
 	// 認証必要
 	protected := v1.Group("")
-	protected.Use(middleware.AuthMiddleware(pubKey))
+	protected.Use(middleware.AuthMiddleware(keys, expectedIssuer, expectedAudience))
 	{
 		// ユーザー設定
 		users := protected.Group("/users/me")

@@ -3,6 +3,7 @@ package postgres_test
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"os"
 	"testing"
 
@@ -18,13 +19,14 @@ func TestMain(m *testing.M) {
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		os.Exit(m.Run())
+		fmt.Fprintln(os.Stderr, "DATABASE_URL is required to run repository tests")
+		os.Exit(1)
 	}
 
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
-		// URL パース失敗はスキップ
-		os.Exit(m.Run())
+		fmt.Fprintf(os.Stderr, "failed to parse DATABASE_URL: %v\n", err)
+		os.Exit(1)
 	}
 
 	// データベース名が空の場合は "postgres" をデフォルトに
@@ -40,8 +42,8 @@ func TestMain(m *testing.M) {
 
 	testDB, err = pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
-		testDB = nil
-		os.Exit(m.Run())
+		fmt.Fprintf(os.Stderr, "failed to connect to database: %v\n", err)
+		os.Exit(1)
 	}
 	defer testDB.Close()
 

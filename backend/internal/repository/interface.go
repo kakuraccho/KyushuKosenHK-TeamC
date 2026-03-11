@@ -45,4 +45,5 @@ type FriendRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*model.Friendship, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status model.FriendshipStatus) error
 	ListFriends(ctx context.Context, userID uuid.UUID) ([]*model.Friendship, error)
+	AreFriends(ctx context.Context, userA, userB uuid.UUID) (bool, error)
 }

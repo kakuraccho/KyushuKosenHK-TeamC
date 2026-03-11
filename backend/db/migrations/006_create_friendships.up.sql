@@ -6,5 +6,6 @@ CREATE TABLE friendships (
   following_id UUID NOT NULL REFERENCES users(id),
   status       friendship_status NOT NULL DEFAULT 'pending',
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (follower_id, following_id)
+  UNIQUE (follower_id, following_id),
+  CONSTRAINT friendship_no_self CHECK (follower_id <> following_id)
 );

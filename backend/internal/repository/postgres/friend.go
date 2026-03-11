@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/model"
 )
@@ -60,10 +61,29 @@ func (r *friendRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.F
 }
 
 func (r *friendRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status model.FriendshipStatus) error {
-	_, err := r.db.Exec(ctx,
+	tag, err := r.db.Exec(ctx,
 		`UPDATE friendships SET status = $1 WHERE id = $2`, status, id,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+func (r *friendRepository) AreFriends(ctx context.Context, userA, userB uuid.UUID) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx,
+		`SELECT EXISTS (
+		   SELECT 1 FROM friendships
+		   WHERE status = 'accepted'
+		     AND ((follower_id = $1 AND following_id = $2)
+		       OR (follower_id = $2 AND following_id = $1))
+		 )`, userA, userB,
+	).Scan(&exists)
+	return exists, err
 }
 
 func (r *friendRepository) ListFriends(ctx context.Context, userID uuid.UUID) ([]*model.Friendship, error) {

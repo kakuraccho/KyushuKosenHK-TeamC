@@ -26,8 +26,11 @@ func main() {
 	jwksURL := mustEnv("SUPABASE_JWKS_URL")
 	port := getEnv("PORT", "8080")
 
+	expectedIssuer := mustEnv("SUPABASE_JWT_ISSUER")
+	expectedAudience := getEnv("SUPABASE_JWT_AUDIENCE", "authenticated")
+
 	// JWKS から EC 公開鍵を取得
-	pubKey, err := middleware.FetchECPublicKey(jwksURL)
+	keys, err := middleware.FetchECPublicKeys(jwksURL)
 	if err != nil {
 		log.Fatalf("failed to fetch JWKS: %v", err)
 	}
@@ -67,7 +70,7 @@ func main() {
 	userSvc := service.NewUserService(userRepo)
 	sessionSvc := service.NewSessionService(sessionRepo)
 	videoSvc := service.NewVideoService(videoRepo, supabaseStorage)
-	postSvc := service.NewPostService(postRepo, videoRepo)
+	postSvc := service.NewPostService(postRepo, videoRepo, friendRepo)
 	commentSvc := service.NewCommentService(commentRepo, postRepo)
 	friendSvc := service.NewFriendService(friendRepo)
 
@@ -82,7 +85,7 @@ func main() {
 		Friend:  handler.NewFriendHandler(friendSvc),
 	}
 
-	r := router.NewRouter(handlers, pubKey)
+	r := router.NewRouter(handlers, keys, expectedIssuer, expectedAudience)
 	log.Printf("server starting on :%s", port)
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("server error: %v", err)

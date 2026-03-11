@@ -17,6 +17,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testIssuer   = "https://example.supabase.co/auth/v1"
+	testAudience = "authenticated"
+	testKid      = "test-key-id"
+)
+
 func init() {
 	gin.SetMode(gin.TestMode)
 }
@@ -28,21 +34,27 @@ func newTestKeyPair(t *testing.T) (*ecdsa.PrivateKey, *ecdsa.PublicKey) {
 	return priv, &priv.PublicKey
 }
 
+func makeKeys(pub *ecdsa.PublicKey) map[string]*ecdsa.PublicKey {
+	return map[string]*ecdsa.PublicKey{testKid: pub}
+}
+
 func makeToken(t *testing.T, priv *ecdsa.PrivateKey, sub string, exp time.Time) string {
 	t.Helper()
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
 		"sub": sub,
 		"exp": exp.Unix(),
-		"iss": "supabase",
+		"iss": testIssuer,
+		"aud": testAudience,
 	})
+	token.Header["kid"] = testKid
 	tokenStr, err := token.SignedString(priv)
 	require.NoError(t, err)
 	return tokenStr
 }
 
-func setupRouter(pubKey *ecdsa.PublicKey) *gin.Engine {
+func setupRouter(keys map[string]*ecdsa.PublicKey) *gin.Engine {
 	r := gin.New()
-	r.Use(middleware.AuthMiddleware(pubKey))
+	r.Use(middleware.AuthMiddleware(keys, testIssuer, testAudience))
 	r.GET("/protected", func(c *gin.Context) {
 		userID := c.MustGet("user_id").(uuid.UUID)
 		c.JSON(http.StatusOK, gin.H{"user_id": userID.String()})
@@ -56,7 +68,7 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 	userID := uuid.New()
 	token := makeToken(t, priv, userID.String(), time.Now().Add(time.Hour))
 
-	r := setupRouter(pub)
+	r := setupRouter(makeKeys(pub))
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
@@ -69,7 +81,7 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 // TestAuthMiddleware_NoHeader は Authorization ヘッダーなしで 401 が返ることを確認する。
 func TestAuthMiddleware_NoHeader(t *testing.T) {
 	_, pub := newTestKeyPair(t)
-	r := setupRouter(pub)
+	r := setupRouter(makeKeys(pub))
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	w := httptest.NewRecorder()
@@ -83,7 +95,7 @@ func TestAuthMiddleware_ExpiredToken(t *testing.T) {
 	priv, pub := newTestKeyPair(t)
 	token := makeToken(t, priv, uuid.New().String(), time.Now().Add(-time.Hour))
 
-	r := setupRouter(pub)
+	r := setupRouter(makeKeys(pub))
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
@@ -98,7 +110,8 @@ func TestAuthMiddleware_WrongKey(t *testing.T) {
 	_, otherPub := newTestKeyPair(t)
 	token := makeToken(t, priv, uuid.New().String(), time.Now().Add(time.Hour))
 
-	r := setupRouter(otherPub)
+	// same kid, but mapped to a different public key
+	r := setupRouter(makeKeys(otherPub))
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
@@ -110,7 +123,7 @@ func TestAuthMiddleware_WrongKey(t *testing.T) {
 // TestAuthMiddleware_InvalidFormat は "Bearer" プレフィックスなしで 401 が返ることを確認する。
 func TestAuthMiddleware_InvalidFormat(t *testing.T) {
 	_, pub := newTestKeyPair(t)
-	r := setupRouter(pub)
+	r := setupRouter(makeKeys(pub))
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "invalidtoken")

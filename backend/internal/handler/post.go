@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -61,15 +62,14 @@ func (h *PostHandler) Create(c *gin.Context) {
 		Visibility: visibility,
 	})
 	if err != nil {
-		if err.Error() == "forbidden: video does not belong to you" {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-			return
+		switch {
+		case errors.Is(err, service.ErrVideoForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		case errors.Is(err, service.ErrVideoNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "video not found"})
+		default:
+			handleServiceError(c, err)
 		}
-		if err.Error() == "video not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		handleServiceError(c, err)
 		return
 	}
 
@@ -89,15 +89,24 @@ func (h *PostHandler) Feed(c *gin.Context) {
 }
 
 func (h *PostHandler) Get(c *gin.Context) {
+	requesterID := c.MustGet("user_id").(uuid.UUID)
+
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
 
-	post, err := h.postSvc.Get(c.Request.Context(), id)
+	post, err := h.postSvc.Get(c.Request.Context(), id, requesterID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+		switch {
+		case errors.Is(err, service.ErrPostNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+		case errors.Is(err, service.ErrPostForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		default:
+			handleServiceError(c, err)
+		}
 		return
 	}
 
@@ -114,11 +123,11 @@ func (h *PostHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.postSvc.Delete(c.Request.Context(), userID, id); err != nil {
-		switch err.Error() {
-		case "post not found":
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		case "forbidden: post does not belong to you":
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		switch {
+		case errors.Is(err, service.ErrPostNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+		case errors.Is(err, service.ErrPostForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 		default:
 			handleServiceError(c, err)
 		}

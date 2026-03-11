@@ -13,6 +13,7 @@ import (
 )
 
 type jwk struct {
+	Kid string `json:"kid"`
 	Kty string `json:"kty"`
 	Crv string `json:"crv"`
 	X   string `json:"x"`
@@ -23,8 +24,8 @@ type jwksResponse struct {
 	Keys []jwk `json:"keys"`
 }
 
-// FetchECPublicKey は JWKS エンドポイントから EC P-256 公開鍵を取得する。
-func FetchECPublicKey(jwksURL string) (*ecdsa.PublicKey, error) {
+// FetchECPublicKeys は JWKS エンドポイントから EC P-256 公開鍵を kid をキーとした map で返す。
+func FetchECPublicKeys(jwksURL string) (map[string]*ecdsa.PublicKey, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -38,29 +39,37 @@ func FetchECPublicKey(jwksURL string) (*ecdsa.PublicKey, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("fetch jwks: unexpected status %d", resp.StatusCode)
+	}
+
 	var keys jwksResponse
 	if err := json.NewDecoder(resp.Body).Decode(&keys); err != nil {
 		return nil, fmt.Errorf("decode jwks: %w", err)
 	}
 
+	result := make(map[string]*ecdsa.PublicKey)
 	for _, k := range keys.Keys {
 		if k.Kty != "EC" || k.Crv != "P-256" {
 			continue
 		}
 		xBytes, err := base64.RawURLEncoding.DecodeString(k.X)
 		if err != nil {
-			return nil, fmt.Errorf("decode x: %w", err)
+			return nil, fmt.Errorf("decode x for kid %q: %w", k.Kid, err)
 		}
 		yBytes, err := base64.RawURLEncoding.DecodeString(k.Y)
 		if err != nil {
-			return nil, fmt.Errorf("decode y: %w", err)
+			return nil, fmt.Errorf("decode y for kid %q: %w", k.Kid, err)
 		}
-		return &ecdsa.PublicKey{
+		result[k.Kid] = &ecdsa.PublicKey{
 			Curve: elliptic.P256(),
 			X:     new(big.Int).SetBytes(xBytes),
 			Y:     new(big.Int).SetBytes(yBytes),
-		}, nil
+		}
 	}
 
-	return nil, fmt.Errorf("no EC P-256 key found in jwks")
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no EC P-256 key found in jwks")
+	}
+	return result, nil
 }

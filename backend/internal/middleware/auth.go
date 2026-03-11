@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -11,7 +12,7 @@ import (
 )
 
 // AuthMiddleware は Supabase が発行した ES256 JWT を検証する。
-func AuthMiddleware(pubKey *ecdsa.PublicKey) gin.HandlerFunc {
+func AuthMiddleware(keys map[string]*ecdsa.PublicKey, expectedIssuer, expectedAudience string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -26,11 +27,22 @@ func AuthMiddleware(pubKey *ecdsa.PublicKey) gin.HandlerFunc {
 		}
 
 		token, err := jwt.Parse(parts[1], func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodECDSA); !ok {
+			if t.Method.Alg() != jwt.SigningMethodES256.Alg() {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return pubKey, nil
-		})
+			kid, ok := t.Header["kid"].(string)
+			if !ok || kid == "" {
+				return nil, fmt.Errorf("missing kid in token header")
+			}
+			key, found := keys[kid]
+			if !found {
+				return nil, fmt.Errorf("unknown kid: %s", kid)
+			}
+			return key, nil
+		},
+			jwt.WithIssuer(expectedIssuer),
+			jwt.WithAudience(expectedAudience),
+		)
 		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return

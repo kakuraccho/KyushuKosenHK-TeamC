@@ -1,5 +1,5 @@
 CREATE TABLE user_settings (
-  user_id               UUID PRIMARY KEY REFERENCES users(id),
+  user_id               UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   time_pomodoro         INTEGER NOT NULL DEFAULT 25,
   time_short_break      INTEGER NOT NULL DEFAULT 5,
   time_long_break       INTEGER NOT NULL DEFAULT 15,

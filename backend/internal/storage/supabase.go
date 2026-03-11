@@ -1,17 +1,22 @@
 package storage
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
+	"time"
 )
+
+const uploadTimeout = 5 * time.Minute
 
 type SupabaseStorage struct {
 	baseURL        string
 	serviceRoleKey string
 	bucketName     string
+	httpClient     *http.Client
 }
 
 func NewSupabaseStorage(baseURL, serviceRoleKey, bucketName string) *SupabaseStorage {
@@ -19,20 +24,34 @@ func NewSupabaseStorage(baseURL, serviceRoleKey, bucketName string) *SupabaseSto
 		baseURL:        baseURL,
 		serviceRoleKey: serviceRoleKey,
 		bucketName:     bucketName,
+		httpClient:     &http.Client{Timeout: uploadTimeout},
 	}
 }
 
-func (s *SupabaseStorage) UploadVideo(ctx context.Context, fileName string, contentType string, data []byte) (string, error) {
-	url := fmt.Sprintf("%s/storage/v1/object/%s/%s", s.baseURL, s.bucketName, fileName)
+// escapePath はスラッシュを区切りとして各パスセグメントを percent-encode する。
+func escapePath(path string) string {
+	segments := strings.Split(path, "/")
+	for i, seg := range segments {
+		segments[i] = url.PathEscape(seg)
+	}
+	return strings.Join(segments, "/")
+}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+func (s *SupabaseStorage) UploadVideo(ctx context.Context, fileName string, contentType string, r io.Reader, size int64) (string, error) {
+	escapedBucket := url.PathEscape(s.bucketName)
+	escapedFile := escapePath(fileName)
+
+	uploadURL := fmt.Sprintf("%s/storage/v1/object/%s/%s", s.baseURL, escapedBucket, escapedFile)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, r)
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}
+	req.ContentLength = size
 	req.Header.Set("Authorization", "Bearer "+s.serviceRoleKey)
 	req.Header.Set("Content-Type", contentType)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("upload request: %w", err)
 	}
@@ -43,6 +62,6 @@ func (s *SupabaseStorage) UploadVideo(ctx context.Context, fileName string, cont
 		return "", fmt.Errorf("upload failed: status=%d body=%s", resp.StatusCode, body)
 	}
 
-	publicURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", s.baseURL, s.bucketName, fileName)
+	publicURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", s.baseURL, escapedBucket, escapedFile)
 	return publicURL, nil
 }

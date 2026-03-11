@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,11 +21,11 @@ func NewVideoService(repo repository.VideoRepository, storage *storage.SupabaseS
 	return &VideoService{repo: repo, storage: storage}
 }
 
-func (s *VideoService) Upload(ctx context.Context, userID uuid.UUID, contentType string, data []byte) (*model.Video, error) {
+func (s *VideoService) Upload(ctx context.Context, userID uuid.UUID, contentType string, r io.Reader, size int64) (*model.Video, error) {
 	// ユーザー入力ファイル名は使わず UUID をファイル名として使用（パストラバーサル対策）
 	fileName := fmt.Sprintf("%s/%s.mp4", userID.String(), uuid.New().String())
 
-	storageURL, err := s.storage.UploadVideo(ctx, fileName, contentType, data)
+	storageURL, err := s.storage.UploadVideo(ctx, fileName, contentType, r, size)
 	if err != nil {
 		return nil, err
 	}

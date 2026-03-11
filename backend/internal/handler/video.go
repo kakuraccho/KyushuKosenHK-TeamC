@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 
@@ -31,27 +32,28 @@ func (h *VideoHandler) Upload(c *gin.Context) {
 
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxVideoSize)
 
-	file, _, err := c.Request.FormFile("video")
+	file, header, err := c.Request.FormFile("video")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "video file required"})
 		return
 	}
 	defer file.Close()
 
-	data, err := io.ReadAll(file)
-	if err != nil {
+	// MIME タイプを先頭 512 バイトで検出してホワイトリスト検証（全体をメモリに読み込まない）
+	buf := make([]byte, 512)
+	n, err := io.ReadFull(file, buf)
+	if err != nil && err != io.ErrUnexpectedEOF {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "file too large or unreadable"})
 		return
 	}
-
-	// MIME タイプを先頭 512 バイトで検出してホワイトリスト検証
-	mimeType := http.DetectContentType(data)
+	mimeType := http.DetectContentType(buf[:n])
 	if !allowedVideoMIME[mimeType] {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported video format"})
 		return
 	}
 
-	video, err := h.videoSvc.Upload(c.Request.Context(), userID, mimeType, data)
+	stream := io.MultiReader(bytes.NewReader(buf[:n]), file)
+	video, err := h.videoSvc.Upload(c.Request.Context(), userID, mimeType, stream, header.Size)
 	if err != nil {
 		handleServiceError(c, err)
 		return
