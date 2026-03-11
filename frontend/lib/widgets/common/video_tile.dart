@@ -5,8 +5,15 @@ class VideoTile extends StatelessWidget {
   final double? width;
   final double? height;
   final double borderRadius;
+  final String? storageUrl;
 
-  const VideoTile({super.key, this.width, this.height, this.borderRadius = 28});
+  const VideoTile({
+    super.key,
+    this.width,
+    this.height,
+    this.borderRadius = 28,
+    this.storageUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -17,6 +24,15 @@ class VideoTile extends StatelessWidget {
         color: AppColors.thumbnailBg,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
+      child: storageUrl != null
+          ? Center(
+              child: Icon(
+                Icons.video_file,
+                color: AppColors.onSurfaceVariant,
+                size: 32,
+              ),
+            )
+          : null,
     );
   }
 }

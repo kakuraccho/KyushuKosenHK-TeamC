@@ -182,6 +182,18 @@
       "languageVersion": "3.7"
     },
     {
+      "name": "ffmpeg_kit_flutter_min",
+      "rootUri": "file:///C:/Users/kakur/AppData/Local/Pub/Cache/hosted/pub.dev/ffmpeg_kit_flutter_min-6.0.3",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "ffmpeg_kit_flutter_platform_interface",
+      "rootUri": "file:///C:/Users/kakur/AppData/Local/Pub/Cache/hosted/pub.dev/ffmpeg_kit_flutter_platform_interface-0.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "file",
       "rootUri": "file:///C:/Users/kakur/AppData/Local/Pub/Cache/hosted/pub.dev/file-7.0.1",
       "packageUri": "lib/",

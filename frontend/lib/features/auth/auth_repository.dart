@@ -13,14 +13,23 @@ class AuthRepository {
   final Dio _dio;
 
   Future<void> signUp({
+    required String name,
     required String email,
     required String password,
   }) async {
     // Supabase Auth でユーザー作成
-    await supabase.auth.signUp(email: email, password: password);
+    final response =
+        await supabase.auth.signUp(email: email, password: password);
+
+    // UID を取得
+    final uid = response.user?.id;
 
     // BFF にユーザー情報を登録
-    await _dio.post('/api/v1/auth/signup', data: {'email': email});
+    await _dio.post('/api/v1/auth/signup', data: {
+      'id': uid,
+      'name': name,
+      'email': email,
+    });
   }
 
   Future<void> signIn({

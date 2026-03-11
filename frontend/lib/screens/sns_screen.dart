@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_colors.dart';
 import '../features/sns/post_model.dart';
 import '../features/sns/sns_providers.dart';
+import '../features/video/video_model.dart';
+import '../features/video/video_provider.dart';
 import '../widgets/common/app_bar.dart';
 
 class SnsScreen extends ConsumerStatefulWidget {
@@ -141,13 +143,6 @@ class _PostCard extends StatelessWidget {
 
   final Post post;
 
-  static String _formatCount(int count) {
-    if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
-    }
-    return count.toString();
-  }
-
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
@@ -160,7 +155,7 @@ class _PostCard extends StatelessWidget {
             bottom: 0,
             left: 0,
             right: 0,
-            child: _ReelsOverlay(post: post, formatCount: _formatCount),
+            child: _ReelsOverlay(post: post),
           ),
         ],
       ),
@@ -169,10 +164,9 @@ class _PostCard extends StatelessWidget {
 }
 
 class _ReelsOverlay extends StatelessWidget {
-  const _ReelsOverlay({required this.post, required this.formatCount});
+  const _ReelsOverlay({required this.post});
 
   final Post post;
-  final String Function(int) formatCount;
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +177,7 @@ class _ReelsOverlay extends StatelessWidget {
         children: [
           Expanded(child: _ReelsLeftBar(post: post)),
           const SizedBox(width: 14),
-          _ReelsRightBar(post: post, formatCount: formatCount),
+          _ReelsRightBar(post: post),
         ],
       ),
     );
@@ -219,7 +213,7 @@ class _ReelsLeftBar extends StatelessWidget {
             const SizedBox(width: 10),
             Flexible(
               child: Text(
-                post.userName,
+                post.userId,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
@@ -250,7 +244,7 @@ class _ReelsLeftBar extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          post.comment,
+          post.content,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
@@ -266,53 +260,20 @@ class _ReelsLeftBar extends StatelessWidget {
 }
 
 class _ReelsRightBar extends StatelessWidget {
-  const _ReelsRightBar({required this.post, required this.formatCount});
+  const _ReelsRightBar({required this.post});
 
   final Post post;
-  final String Function(int) formatCount;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _ReelAction(
-          icon: Icons.favorite_border,
-          count: formatCount(post.likeCount),
-        ),
+        const Icon(Icons.favorite_border, size: 23, color: Colors.white),
         const SizedBox(height: 23),
-        _ReelAction(
-          icon: Icons.chat_bubble_outline,
-          count: formatCount(post.commentCount),
-        ),
+        const Icon(Icons.chat_bubble_outline, size: 23, color: Colors.white),
         const SizedBox(height: 23),
         const Icon(Icons.more_horiz, size: 15, color: Colors.white),
-      ],
-    );
-  }
-}
-
-class _ReelAction extends StatelessWidget {
-  final IconData icon;
-  final String count;
-
-  const _ReelAction({required this.icon, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, size: 23, color: Colors.white),
-        const SizedBox(height: 12),
-        Text(
-          count,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-            letterSpacing: -0.24,
-          ),
-        ),
       ],
     );
   }
@@ -327,28 +288,28 @@ class _PostFormBottomSheet extends ConsumerStatefulWidget {
 }
 
 class _PostFormBottomSheetState extends ConsumerState<_PostFormBottomSheet> {
-  final _commentController = TextEditingController();
+  final _contentController = TextEditingController();
   String _visibility = 'public';
-  bool _videoSelected = false;
+  VideoModel? _selectedVideo;
   bool _isSubmitting = false;
 
   @override
   void dispose() {
-    _commentController.dispose();
+    _contentController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    final comment = _commentController.text.trim();
-    if (comment.isEmpty) return;
+    final content = _contentController.text.trim();
+    if (content.isEmpty) return;
 
     setState(() => _isSubmitting = true);
 
     try {
       await ref.read(feedProvider.notifier).createPost(
-            comment: comment,
+            content: content,
             visibility: _visibility,
-            videoUrl: _videoSelected ? 'mock_video.mp4' : null,
+            videoId: _selectedVideo?.id,
           );
       if (!mounted) return;
       Navigator.pop(context);
@@ -398,7 +359,7 @@ class _PostFormBottomSheetState extends ConsumerState<_PostFormBottomSheet> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _commentController,
+            controller: _contentController,
             maxLines: 3,
             style: const TextStyle(color: AppColors.onSurface),
             decoration: InputDecoration(
@@ -450,35 +411,55 @@ class _PostFormBottomSheetState extends ConsumerState<_PostFormBottomSheet> {
             ],
           ),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () {
-              setState(() => _videoSelected = !_videoSelected);
+          Consumer(
+            builder: (context, ref, _) {
+              final videosAsync = ref.watch(videoListProvider);
+              return OutlinedButton.icon(
+                onPressed: videosAsync.valueOrNull?.isEmpty ?? true
+                    ? null
+                    : () async {
+                        final videos = videosAsync.valueOrNull ?? [];
+                        final selected = await showDialog<VideoModel>(
+                          context: context,
+                          builder: (_) =>
+                              _VideoPickerDialog(videos: videos),
+                        );
+                        if (selected != null) {
+                          setState(() => _selectedVideo = selected);
+                        }
+                      },
+                icon: Icon(
+                  _selectedVideo != null
+                      ? Icons.check_circle
+                      : Icons.video_library,
+                  color: _selectedVideo != null
+                      ? AppColors.secondary
+                      : AppColors.onSurfaceVariant,
+                ),
+                label: Text(
+                  _selectedVideo != null
+                      ? '動画を選択済み'
+                      : (videosAsync.valueOrNull?.isEmpty ?? true)
+                          ? '動画がありません'
+                          : '動画を選択',
+                  style: TextStyle(
+                    color: _selectedVideo != null
+                        ? AppColors.secondary
+                        : AppColors.onSurfaceVariant,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: _selectedVideo != null
+                        ? AppColors.secondary
+                        : AppColors.secondaryContainer,
+                  ),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              );
             },
-            icon: Icon(
-              _videoSelected ? Icons.check_circle : Icons.video_library,
-              color: _videoSelected
-                  ? AppColors.secondary
-                  : AppColors.onSurfaceVariant,
-            ),
-            label: Text(
-              _videoSelected ? 'mock_video.mp4' : 'Select video',
-              style: TextStyle(
-                color: _videoSelected
-                    ? AppColors.secondary
-                    : AppColors.onSurfaceVariant,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(
-                color: _videoSelected
-                    ? AppColors.secondary
-                    : AppColors.secondaryContainer,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(
@@ -512,6 +493,55 @@ class _PostFormBottomSheetState extends ConsumerState<_PostFormBottomSheet> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _VideoPickerDialog extends StatelessWidget {
+  const _VideoPickerDialog({required this.videos});
+  final List<VideoModel> videos;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surfaceContainer,
+      title:
+          const Text('動画を選択', style: TextStyle(color: AppColors.onSurface)),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 300,
+        child: GridView.builder(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 4,
+            mainAxisSpacing: 4,
+            childAspectRatio: 1,
+          ),
+          itemCount: videos.length,
+          itemBuilder: (context, index) {
+            final video = videos[index];
+            return GestureDetector(
+              onTap: () => Navigator.pop(context, video),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.thumbnailBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.video_file,
+                  color: AppColors.onSurfaceVariant,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('キャンセル'),
+        ),
+      ],
     );
   }
 }

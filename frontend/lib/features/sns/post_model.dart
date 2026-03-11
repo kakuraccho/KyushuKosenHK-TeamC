@@ -2,35 +2,26 @@ class Post {
   Post({
     required this.id,
     required this.userId,
-    required this.userName,
-    this.videoUrl,
-    required this.comment,
+    this.videoId,
+    required this.content,
     required this.visibility,
-    required this.likeCount,
-    required this.commentCount,
     required this.createdAt,
   });
 
   final String id;
   final String userId;
-  final String userName;
-  final String? videoUrl;
-  final String comment;
+  final String? videoId;
+  final String content;
   final String visibility;
-  final int likeCount;
-  final int commentCount;
   final DateTime createdAt;
 
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
       id: json['id'] as String,
       userId: json['user_id'] as String,
-      userName: json['user_name'] as String,
-      videoUrl: json['video_url'] as String?,
-      comment: json['comment'] as String,
+      videoId: json['video_id'] as String?,
+      content: json['content'] as String,
       visibility: json['visibility'] as String,
-      likeCount: json['like_count'] as int? ?? 0,
-      commentCount: json['comment_count'] as int? ?? 0,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -39,12 +30,9 @@ class Post {
     return {
       'id': id,
       'user_id': userId,
-      'user_name': userName,
-      'video_url': videoUrl,
-      'comment': comment,
+      'video_id': videoId,
+      'content': content,
       'visibility': visibility,
-      'like_count': likeCount,
-      'comment_count': commentCount,
       'created_at': createdAt.toIso8601String(),
     };
   }

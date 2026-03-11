@@ -12,9 +12,15 @@ class SessionRepository {
   final Dio _dio;
   SessionRepository(this._dio);
 
-  Future<void> postSession() async {
+  Future<void> postSession({
+    required int duration,
+    required bool isCompleted,
+  }) async {
     try {
-      await _dio.post('/api/v1/sessions');
+      await _dio.post('/api/v1/sessions', data: {
+        'duration': duration,
+        'is_completed': isCompleted,
+      });
     } catch (e) {
       debugPrint('Failed to post session: $e');
     }

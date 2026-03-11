@@ -30,12 +30,22 @@ class PomodoroNotifier extends StateNotifier<int> {
   void stop() {
     _timer?.cancel();
     _timer = null;
+    final elapsed = _pomoDurationSec - state;
     state = _pomoDurationSec;
+    if (elapsed > 0) {
+      _ref.read(sessionRepositoryProvider).postSession(
+            duration: elapsed,
+            isCompleted: false,
+          );
+    }
   }
 
   Future<void> _onComplete() async {
     await NotificationService.showPomodoroComplete();
-    await _ref.read(sessionRepositoryProvider).postSession();
+    await _ref.read(sessionRepositoryProvider).postSession(
+          duration: _pomoDurationSec,
+          isCompleted: true,
+        );
   }
 
   @override

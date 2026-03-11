@@ -24,16 +24,16 @@ class FeedNotifier extends AsyncNotifier<List<Post>> {
   }
 
   Future<void> createPost({
-    required String comment,
+    required String content,
     required String visibility,
-    String? videoUrl,
+    String? videoId,
   }) async {
     final repository = ref.read(snsRepositoryProvider);
     try {
       final newPost = await repository.createPost(
-        comment: comment,
+        content: content,
         visibility: visibility,
-        videoUrl: videoUrl,
+        videoId: videoId,
       );
       final currentPosts = state.valueOrNull ?? [];
       state = AsyncValue.data([newPost, ...currentPosts]);

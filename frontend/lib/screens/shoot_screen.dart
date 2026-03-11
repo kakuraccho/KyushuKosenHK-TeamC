@@ -7,6 +7,8 @@ import '../debug/captured_image_viewer.dart';
 import '../core/camera/camera_cache.dart';
 import '../widgets/common/app_bar.dart';
 import '../features/shoot/pomodoro_provider.dart';
+import '../features/video/video_generator.dart';
+import '../features/video/video_provider.dart';
 
 class ShootScreen extends ConsumerStatefulWidget {
   const ShootScreen({super.key, required this.isActive});
@@ -22,6 +24,7 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
   bool _isInitialized = false;
   bool _isRecording = false;
   bool _isPaused = false;
+  bool _isGeneratingVideo = false;
   Timer? _captureTimer;
   final List<String> _capturedImages = [];
 
@@ -104,11 +107,48 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
     });
   }
 
-  void _stopCapture() {
+  Future<void> _stopCapture() async {
     _captureTimer?.cancel();
     _captureTimer = null;
-    setState(() => _isRecording = false);
     ref.read(pomodoroProvider.notifier).stop();
+
+    if (_capturedImages.isEmpty) {
+      if (mounted) setState(() => _isRecording = false);
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _isGeneratingVideo = true;
+      });
+    }
+
+    try {
+      final videoPath = await VideoGenerator.generateFromImages(
+        List.unmodifiable(_capturedImages),
+      );
+      if (videoPath == null) throw Exception('動画生成に失敗しました');
+
+      final video =
+          await ref.read(videoListProvider.notifier).uploadVideo(videoPath);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              video != null ? '動画を保存しました' : '動画のアップロードに失敗しました'),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Video generation/upload error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('動画の生成・アップロードに失敗しました')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGeneratingVideo = false);
+    }
   }
 
   @override
@@ -151,7 +191,10 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
           ),
         _RecordButtonBar(
           isRecording: _isRecording,
-          onTap: _toggleRecording,
+          isLoading: _isGeneratingVideo,
+          onTap: (_isRecording || !_isGeneratingVideo)
+              ? _toggleRecording
+              : null,
         ),
       ],
     );
@@ -188,11 +231,13 @@ class _PomodoroTimer extends ConsumerWidget {
 class _RecordButtonBar extends StatelessWidget {
   const _RecordButtonBar({
     required this.isRecording,
+    this.isLoading = false,
     required this.onTap,
   });
 
   final bool isRecording;
-  final VoidCallback onTap;
+  final bool isLoading;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -211,17 +256,26 @@ class _RecordButtonBar extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: isRecording ? 32 : 40,
-                  height: isRecording ? 32 : 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.onSecondaryContainer,
-                    borderRadius: isRecording
-                        ? BorderRadius.circular(6)
-                        : BorderRadius.circular(20),
-                  ),
-                ),
+                child: isLoading
+                    ? const SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          color: AppColors.onSecondaryContainer,
+                        ),
+                      )
+                    : AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: isRecording ? 32 : 40,
+                        height: isRecording ? 32 : 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.onSecondaryContainer,
+                          borderRadius: isRecording
+                              ? BorderRadius.circular(6)
+                              : BorderRadius.circular(20),
+                        ),
+                      ),
               ),
             ),
           ),
