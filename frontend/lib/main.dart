@@ -13,9 +13,6 @@ import 'widgets/navigation/main_navigation.dart';
 import 'widgets/navigation/sub_menu_overlay.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// アプリ起動時に取得したカメラリストのキャッシュ
-List<CameraDescription> cachedCameras = [];
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -24,22 +21,14 @@ void main() async {
 
   await dotenv.load(fileName: '.env');
 
-  // Supabase 初期化とカメラリスト取得を並列で実行
   String? initError;
-  await Future.wait([
-    initializeSupabase().then((_) {
-      debugPrint('supabase connected: ${supabase.auth.currentSession}');
-    }).catchError((e, st) {
-      initError = e.toString();
-      debugPrint('Supabase init failed: $e\n$st');
-    }),
-    availableCameras().then((cameras) {
-      cachedCameras = cameras;
-      debugPrint('cameras cached: ${cameras.length}');
-    }).catchError((e) {
-      debugPrint('Camera list failed: $e');
-    }),
-  ]);
+  try {
+    await initializeSupabase();
+    debugPrint('supabase connected: ${supabase.auth.currentSession}');
+  } catch (e, st) {
+    initError = e.toString();
+    debugPrint('Supabase init failed: $e\n$st');
+  }
 
   runApp(ProviderScope(child: MyApp(initError: initError)));
 }
@@ -124,16 +113,14 @@ class _MainScreenState extends State<MainScreen> {
   void _onNavTap(int index) {
     setState(() {
       if (index == 0) {
+        // View タップ: 現在のタブに関わらずサブメニューをトグル
+        // 他タブからでもオーバーレイで選択してから遷移させる
         _showSubMenu = !_showSubMenu;
       } else {
         _currentIndex = index;
         _showSubMenu = false;
       }
     });
-  }
-
-  void _dismissOverlay() {
-    setState(() => _showSubMenu = false);
   }
 
   @override
@@ -150,12 +137,12 @@ class _MainScreenState extends State<MainScreen> {
               const SnsScreen(),
             ],
           ),
+          // オーバーレイ表示中は背面タップで閉じる
           if (_showSubMenu)
             Positioned.fill(
               child: GestureDetector(
-                onTap: _dismissOverlay,
-                behavior: HitTestBehavior.opaque,
-                child: const SizedBox.expand(),
+                onTap: () => setState(() => _showSubMenu = false),
+                behavior: HitTestBehavior.translucent,
               ),
             ),
           Positioned(
@@ -166,11 +153,11 @@ class _MainScreenState extends State<MainScreen> {
                 heightFactor: _showSubMenu ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 250),
                 curve: Curves.easeInOut,
-                alignment: Alignment.bottomCenter,
+                alignment: Alignment.bottomLeft,
                 child: IgnorePointer(
                   ignoring: !_showSubMenu,
                   child: SubMenuOverlay(
-                    selectedTab: _currentIndex == 0 ? _viewSubTab : -1,
+                    selectedTab: _viewSubTab,
                     onTabSelected: (tab) => setState(() {
                       _viewSubTab = tab;
                       _currentIndex = 0;

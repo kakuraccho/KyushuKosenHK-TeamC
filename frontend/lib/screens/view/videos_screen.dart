@@ -1,28 +1,32 @@
 import 'package:flutter/material.dart';
 import '../../widgets/common/video_tile.dart';
 
-class VideosView extends StatefulWidget {
+class VideosView extends StatelessWidget {
   const VideosView({super.key});
 
   @override
-  State<VideosView> createState() => _VideosViewState();
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(14, 12, 14, 0),
+      child: _VideoGrid(),
+    );
+  }
 }
 
-class _VideosViewState extends State<VideosView> {
+class _VideoGrid extends StatelessWidget {
+  const _VideoGrid();
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 4,
-          mainAxisSpacing: 4,
-          childAspectRatio: 121 / 214,
-        ),
-        itemCount: 9,
-        itemBuilder: (context, index) => const VideoTile(borderRadius: 28),
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
+        childAspectRatio: 121 / 214,
       ),
+      itemCount: 9,
+      itemBuilder: (context, index) => const VideoTile(borderRadius: 28),
     );
   }
 }

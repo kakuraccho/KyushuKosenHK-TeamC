@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_colors.dart';
 import '../debug/captured_image_viewer.dart';
-import '../main.dart' show cachedCameras;
 import '../widgets/common/app_bar.dart';
 import '../features/shoot/pomodoro_provider.dart';
 
@@ -21,30 +20,38 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
   CameraController? _cameraController;
   bool _isInitialized = false;
   bool _isRecording = false;
+  bool _isPaused = false;
   Timer? _captureTimer;
   final List<String> _capturedImages = [];
 
   @override
   void initState() {
     super.initState();
-    // アクティブなタブとして起動した場合のみ初期化する
-    if (widget.isActive) {
-      _initCamera();
-    }
+    // 常にバックグラウンドで初期化しておき、非アクティブ時はすぐpauseする。
+    // これにより初回タブ表示時の待ち時間を最小化する。
+    _initCamera();
   }
 
   @override
   void didUpdateWidget(ShootScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive && !oldWidget.isActive) {
-      // タブがアクティブになったらカメラを起動
-      _initCamera();
+      // pause済みのときだけ resumePreview を呼ぶ。
+      // 初回遷移時は一度も pause していないため、呼ぶと例外が出る。
+      if (_isPaused) {
+        _cameraController?.resumePreview();
+        _isPaused = false;
+      }
     } else if (!widget.isActive && oldWidget.isActive) {
-      // タブが非アクティブになったら撮影を止めてカメラをオフにする
+      // タブが非アクティブになったら映像ストリームのみ停止。
+      // dispose せず pausePreview するだけなので、Texture へのフレーム更新が止まり
+      // 他画面のちらつきが解消される。再開も resumePreview で即座に戻る。
       _captureTimer?.cancel();
       _captureTimer = null;
+      if (mounted) setState(() => _isRecording = false);
       ref.read(pomodoroProvider.notifier).stop();
-      _disposeCamera();
+      _cameraController?.pausePreview();
+      _isPaused = true;
     }
   }
 
@@ -138,62 +145,35 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
         // AppBar の内側 top パディング (5px) と同じ間隔
         const SizedBox(height: 5),
         Expanded(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _isInitialized
-                  ? CameraPreview(_cameraController!)
-                  : const _CameraLoadingPlaceholder(),
-              const Positioned(
-                right: 12,
-                bottom: 20,
-                child: _PomodoroTimer(),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _isInitialized
+                      ? CameraPreview(_cameraController!)
+                      : const ColoredBox(color: AppColors.thumbnailBg),
+                  const Positioned(
+                    right: 12,
+                    bottom: 12,
+                    child: _PomodoroTimer(),
+                  ),
+                ],
               ),
-              Positioned(
-                bottom: 20,
-                left: 0,
-                right: 0,
-                child: _RecordButtonBar(
-                  isRecording: _isRecording,
-                  onTap: _toggleRecording,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-        // デバッグストリップはカメラ外・下部に配置して重ならないようにする
         if (_capturedImages.isNotEmpty)
           DebugCapturedImageStrip(
             imagePaths: List.unmodifiable(_capturedImages),
           ),
-      ],
-    );
-  }
-}
-
-class _CameraLoadingPlaceholder extends StatelessWidget {
-  const _CameraLoadingPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const ColoredBox(
-      color: AppColors.thumbnailBg,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: AppColors.secondary),
-            SizedBox(height: 16),
-            Text(
-              'カメラを起動中...',
-              style: TextStyle(
-                color: AppColors.onSurfaceVariant,
-                fontSize: 14,
-              ),
-            ),
-          ],
+        _RecordButtonBar(
+          isRecording: _isRecording,
+          onTap: _toggleRecording,
         ),
-      ),
+      ],
     );
   }
 }
@@ -238,26 +218,32 @@ class _RecordButtonBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 96,
-          height: 96,
-          decoration: BoxDecoration(
-            color: AppColors.secondaryContainer.withValues(alpha: 0.75),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: isRecording ? 32 : 40,
-              height: isRecording ? 32 : 40,
-              decoration: BoxDecoration(
-                color: AppColors.onSecondaryContainer,
-                borderRadius: isRecording
-                    ? BorderRadius.circular(6)
-                    : BorderRadius.circular(20),
+    return ColoredBox(
+      color: AppColors.bg,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 96,
+              height: 96,
+              decoration: const BoxDecoration(
+                color: AppColors.secondaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: isRecording ? 32 : 40,
+                  height: isRecording ? 32 : 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.onSecondaryContainer,
+                    borderRadius: isRecording
+                        ? BorderRadius.circular(6)
+                        : BorderRadius.circular(20),
+                  ),
+                ),
               ),
             ),
           ),

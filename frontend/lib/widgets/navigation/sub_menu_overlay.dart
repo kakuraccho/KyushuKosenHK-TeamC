@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 
-/// Pomodoro / Videos segmented button overlay.
+/// Pomodoro / Videos connected button group overlay.
 /// Design from Figma node-id=1-16060.
 class SubMenuOverlay extends StatelessWidget {
   final int selectedTab;
@@ -13,42 +13,31 @@ class SubMenuOverlay extends StatelessWidget {
     required this.onTabSelected,
   });
 
-  static const _outlineColor = Color(0xFF938F99);
-
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 225,
-      height: 48,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: _outlineColor),
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _Segment(
-                label: 'Pomodoro',
-                isSelected: selectedTab == 0,
-                selectedIcon: Icons.check,
-                unselectedIcon: Icons.timer,
-                onTap: () => onTabSelected(0),
-              ),
-              // divider between segments
-              Container(width: 1, color: _outlineColor),
-              _Segment(
-                label: 'Videos',
-                isSelected: selectedTab == 1,
-                selectedIcon: Icons.check,
-                unselectedIcon: Icons.videocam_outlined,
-                onTap: () => onTabSelected(1),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainer,
+        borderRadius: BorderRadius.circular(35),
+      ),
+      padding: const EdgeInsets.all(6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Segment(
+            label: 'Pomodoro',
+            icon: selectedTab == 0 ? Icons.check : Icons.timer_outlined,
+            isSelected: selectedTab == 0,
+            onTap: () => onTabSelected(0),
           ),
-        ),
+          const SizedBox(width: 4),
+          _Segment(
+            label: 'Videos',
+            icon: selectedTab == 1 ? Icons.check : Icons.image_outlined,
+            isSelected: selectedTab == 1,
+            onTap: () => onTabSelected(1),
+          ),
+        ],
       ),
     );
   }
@@ -56,51 +45,48 @@ class SubMenuOverlay extends StatelessWidget {
 
 class _Segment extends StatelessWidget {
   final String label;
+  final IconData icon;
   final bool isSelected;
-  final IconData selectedIcon;
-  final IconData? unselectedIcon;
   final VoidCallback onTap;
 
   const _Segment({
     required this.label,
+    required this.icon,
     required this.isSelected,
-    required this.selectedIcon,
-    required this.unselectedIcon,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    // secondary bg (light) → onSecondary (dark text); secondaryContainer bg (dark) → onSecondaryContainer (light text)
-    final color =
-        isSelected ? AppColors.onSecondary : AppColors.onSecondaryContainer;
-    final icon = isSelected ? selectedIcon : unselectedIcon;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: ColoredBox(
-          // Selected: bright accent (secondary), unselected: muted dark (secondaryContainer)
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 50),
+        curve: Curves.bounceInOut,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
           color: isSelected ? AppColors.secondary : AppColors.secondaryContainer,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 18, color: color),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.1,
-                  color: color,
-                ),
+          borderRadius: BorderRadius.circular(35),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? AppColors.onSecondary : AppColors.onSecondaryContainer,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.1,
+                color: isSelected ? AppColors.onSecondary : AppColors.onSecondaryContainer,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
