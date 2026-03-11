@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS posts;
+DROP TYPE IF EXISTS visibility_type;
