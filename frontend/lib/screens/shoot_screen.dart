@@ -3,6 +3,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_colors.dart';
+import '../debug/captured_image_viewer.dart';
 import '../widgets/common/app_bar.dart';
 import '../features/shoot/pomodoro_provider.dart';
 
@@ -21,6 +22,7 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
   bool _isRecording = false;
   bool _isPaused = false;
   Timer? _captureTimer;
+  final List<String> _capturedImages = [];
 
   @override
   void initState() {
@@ -84,7 +86,10 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
   }
 
   void _startCapture() {
-    setState(() => _isRecording = true);
+    setState(() {
+      _isRecording = true;
+      _capturedImages.clear();
+    });
     ref.read(pomodoroProvider.notifier).start();
     _captureTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       final controller = _cameraController;
@@ -92,6 +97,9 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
       try {
         final file = await controller.takePicture();
         debugPrint('Captured: ${file.path}');
+        if (mounted) {
+          setState(() => _capturedImages.add(file.path));
+        }
       } catch (e) {
         debugPrint('Capture error: $e');
       }
@@ -138,6 +146,10 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
             ),
           ),
         ),
+        if (_capturedImages.isNotEmpty)
+          DebugCapturedImageStrip(
+            imagePaths: List.unmodifiable(_capturedImages),
+          ),
         _RecordButtonBar(
           isRecording: _isRecording,
           onTap: _toggleRecording,
