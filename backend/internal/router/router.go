@@ -2,7 +2,9 @@ package router
 
 import (
 	"crypto/ecdsa"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/handler"
 	"github.com/kakuraccho/KyushuKosenHK-TeamC/backend/internal/middleware"
@@ -18,8 +20,17 @@ type Handlers struct {
 	Friend  *handler.FriendHandler
 }
 
-func NewRouter(h Handlers, keys map[string]*ecdsa.PublicKey, expectedIssuer, expectedAudience string) *gin.Engine {
+func NewRouter(h Handlers, keys map[string]*ecdsa.PublicKey, expectedIssuer, expectedAudience string, allowOrigins []string) *gin.Engine {
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     allowOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: false,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	v1 := r.Group("/api/v1")
 
