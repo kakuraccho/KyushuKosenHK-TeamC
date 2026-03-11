@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -144,7 +145,6 @@ class _MainScreenState extends State<MainScreen> {
                 behavior: HitTestBehavior.translucent,
               ),
             ),
-          // Pomodoro / Videos overlay (slides up above BottomBar)
           Positioned(
             bottom: 8,
             left: 14,

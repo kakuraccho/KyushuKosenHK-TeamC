@@ -56,7 +56,9 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
   }
 
   Future<void> _initCamera() async {
-    final cameras = await availableCameras();
+    // アプリ起動時にキャッシュ済みのリストを使い、未取得の場合のみ再取得する
+    final cameras =
+        cachedCameras.isNotEmpty ? cachedCameras : await availableCameras();
     if (cameras.isEmpty) return;
 
     final controller = CameraController(
@@ -67,7 +69,10 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
 
     try {
       await controller.initialize();
-      if (!mounted) return;
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
       setState(() {
         _cameraController = controller;
         _isInitialized = true;
@@ -75,6 +80,18 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
     } catch (e) {
       debugPrint('Camera init error: $e');
     }
+  }
+
+  Future<void> _disposeCamera() async {
+    final controller = _cameraController;
+    if (mounted) {
+      setState(() {
+        _cameraController = null;
+        _isInitialized = false;
+        _isRecording = false;
+      });
+    }
+    await controller?.dispose();
   }
 
   void _toggleRecording() {
@@ -125,6 +142,8 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
     return Column(
       children: [
         const FocusAppBar(title: 'Shoot'),
+        // AppBar の内側 top パディング (5px) と同じ間隔
+        const SizedBox(height: 5),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
