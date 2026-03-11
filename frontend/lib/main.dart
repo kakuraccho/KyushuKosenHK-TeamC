@@ -2,27 +2,25 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'constants/app_colors.dart';
 import 'core/camera/camera_cache.dart';
 import 'core/supabase/supabase_client.dart';
-import 'theme/app_theme.dart';
-import 'screens/view/view_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'screens/shoot_screen.dart';
 import 'screens/sns_screen.dart';
-import 'screens/auth/login_screen.dart';
+import 'screens/view/view_screen.dart';
+import 'theme/app_theme.dart';
 import 'widgets/navigation/main_navigation.dart';
 import 'widgets/navigation/sub_menu_overlay.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // warm-up frame が旧ウィジェットツリーを描画する前にローディング画面に差し替える
   runApp(const _SplashApp());
 
   await dotenv.load(fileName: '.env');
 
-  // Supabase 初期化とカメラリスト取得を並列で実行
   String? initError;
   await Future.wait([
     initializeSupabase().then((_) {
@@ -84,14 +82,9 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatefulWidget {
+class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
-  @override
-  State<AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<AuthState>(
@@ -116,14 +109,12 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  int _viewSubTab = 0; // 0=Pomodoro, 1=Videos
+  int _viewSubTab = 0;
   bool _showSubMenu = false;
 
   void _onNavTap(int index) {
     setState(() {
       if (index == 0) {
-        // View タップ: 現在のタブに関わらずサブメニューをトグル
-        // 他タブからでもオーバーレイで選択してから遷移させる
         _showSubMenu = !_showSubMenu;
       } else {
         _currentIndex = index;
@@ -146,7 +137,6 @@ class _MainScreenState extends State<MainScreen> {
               const SnsScreen(),
             ],
           ),
-          // オーバーレイ表示中は背面タップで閉じる
           if (_showSubMenu)
             Positioned.fill(
               child: GestureDetector(

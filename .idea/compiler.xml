@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <bytecodeTargetLevel>
+      <module name="android.app_links" target="24" />
+      <module name="android.camera_android_camerax" target="24" />
+      <module name="android.flutter_local_notifications" target="24" />
+      <module name="android.flutter_plugin_android_lifecycle" target="24" />
+      <module name="android.path_provider_android" target="24" />
+      <module name="android.shared_preferences_android" target="24" />
+      <module name="android.url_launcher_android" target="24" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

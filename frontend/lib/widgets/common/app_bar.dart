@@ -23,7 +23,6 @@ class FocusAppBar extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Leading: hamburger menu
               Positioned(
                 left: 4,
                 child: IconButton(
@@ -31,7 +30,6 @@ class FocusAppBar extends StatelessWidget {
                   onPressed: () {},
                 ),
               ),
-              // Title: centered
               Text(
                 title,
                 style: const TextStyle(
@@ -40,7 +38,6 @@ class FocusAppBar extends StatelessWidget {
                   color: AppColors.onSurface,
                 ),
               ),
-              // Trailing: account icon
               Positioned(
                 right: 4,
                 child: IconButton(

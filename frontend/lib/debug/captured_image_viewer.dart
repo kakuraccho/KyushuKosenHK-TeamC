@@ -1,5 +1,3 @@
-// デバッグ用: 撮影画像の確認UI
-// 本番リリース前に削除すること
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';

@@ -4,7 +4,7 @@ import '../../core/api/api_client.dart';
 import '../../core/supabase/supabase_client.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(ref.watch(apiClientProvider));
+  return AuthRepository(ref.read(apiClientProvider));
 });
 
 class AuthRepository {

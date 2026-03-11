@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 
-/// Pomodoro / Videos connected button group overlay.
-/// Design from Figma node-id=1-16060.
 class SubMenuOverlay extends StatelessWidget {
   final int selectedTab;
   final ValueChanged<int> onTabSelected;
