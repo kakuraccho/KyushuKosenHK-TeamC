@@ -10,6 +10,7 @@
         "camera",
         "cupertino_icons",
         "dio",
+        "fl_chart",
         "flutter",
         "flutter_dotenv",
         "flutter_local_notifications",
@@ -50,6 +51,15 @@
         "stack_trace",
         "stream_channel",
         "test_api",
+        "vector_math"
+      ]
+    },
+    {
+      "name": "fl_chart",
+      "version": "0.70.2",
+      "dependencies": [
+        "equatable",
+        "flutter",
         "vector_math"
       ]
     },
@@ -239,6 +249,14 @@
         "stream_channel",
         "string_scanner",
         "term_glyph"
+      ]
+    },
+    {
+      "name": "equatable",
+      "version": "2.0.8",
+      "dependencies": [
+        "collection",
+        "meta"
       ]
     },
     {
