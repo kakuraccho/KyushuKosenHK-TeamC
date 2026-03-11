@@ -57,3 +57,14 @@ func (s *PostService) Feed(ctx context.Context, userID uuid.UUID) ([]*model.Post
 func (s *PostService) Get(ctx context.Context, id uuid.UUID) (*model.Post, error) {
 	return s.repo.FindByID(ctx, id)
 }
+
+func (s *PostService) Delete(ctx context.Context, userID, postID uuid.UUID) error {
+	post, err := s.repo.FindByID(ctx, postID)
+	if err != nil {
+		return fmt.Errorf("post not found")
+	}
+	if post.UserID != userID {
+		return fmt.Errorf("forbidden: post does not belong to you")
+	}
+	return s.repo.Delete(ctx, postID)
+}

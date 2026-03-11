@@ -9,7 +9,7 @@
 | 用途 | ライブラリ/サービス |
 |---|---|
 | HTTPフレームワーク | Gin |
-| 認証 | Supabase Auth（JWT検証: `golang-jwt/jwt`） |
+| 認証 | Supabase Auth（JWT検証: ES256 via JWKS） |
 | DB ドライバ | `jackc/pgx/v5` |
 | DB マイグレーション | `golang-migrate/migrate` |
 | ストレージ | Supabase Storage（REST API経由） |
@@ -29,41 +29,70 @@ cp .env.example .env
 
 | 変数名 | 説明 |
 |---|---|
-| `DATABASE_URL` | PostgreSQL接続文字列 |
+| `DATABASE_URL` | Supabase Transaction Pooler の接続文字列（port 6543） |
 | `SUPABASE_URL` | Supabase プロジェクトURL |
-| `SUPABASE_JWT_SECRET` | JWT検証用シークレット |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Storage操作用キー |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Storage操作用サービスロールキー |
+| `SUPABASE_JWKS_URL` | JWT検証用JWKSエンドポイント |
 | `PORT` | サーバーポート（デフォルト: 8080） |
 
 ### 2. DBマイグレーション
 
 ```bash
-migrate -path db/migrations -database "$DATABASE_URL" up
+# golang-migrate CLI のインストール（未インストールの場合）
+go install -tags 'pgx5' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# マイグレーション実行
+migrate -path db/migrations \
+  -database "pgx5://your-db-url?default_query_exec_mode=simple_protocol" \
+  up
 ```
 
-### 3. 起動
+> Supabase の Transaction Pooler（port 6543）は prepared statement 非対応のため、
+> `default_query_exec_mode=simple_protocol` が必要です。
+
+### 3. サーバー起動
 
 ```bash
 # 通常起動
 go run ./cmd/server/main.go
 
-# ホットリロード (Air)
+# ホットリロード（Air が必要）
 air -c .air.toml
 ```
 
 ---
 
-## ビルド & テスト
+## テスト
+
+```bash
+# 全テスト実行（キャッシュ無効）
+go test ./... -count=1
+
+# 特定パッケージのみ
+go test ./internal/middleware/... -count=1 -v
+go test ./internal/repository/postgres/... -count=1 -v
+
+# テスト実行には .env が必要（DB接続テストのため）
+# DBが使えない環境ではDBテストは自動スキップされます
+```
+
+テスト内容:
+
+| テスト | 場所 |
+|---|---|
+| JWT認証ミドルウェア（ES256, 有効期限, 無効キー等） | `internal/middleware/auth_test.go` |
+| DB接続確認、User/Settings/Session CRUD | `internal/repository/postgres/db_test.go` |
+
+---
+
+## ビルド & Lint
 
 ```bash
 # ビルド
 go build ./...
 
-# テスト
-go test ./...
-
-# lint
-golangci-lint run
+# lint（golangci-lint が必要）
+golangci-lint run ./...
 
 # フォーマット
 gofmt -w .
@@ -79,29 +108,47 @@ gofmt -w .
 │   └── server/
 │       └── main.go          # エントリーポイント
 ├── internal/
-│   ├── handler/             # HTTPハンドラー (薄く保つ)
+│   ├── handler/             # HTTPハンドラー（薄く保つ）
 │   │   ├── auth.go
-│   │   ├── user.go
-│   │   ├── session.go
-│   │   ├── video.go
+│   │   ├── comment.go
+│   │   ├── errors.go
+│   │   ├── friend.go
 │   │   ├── post.go
-│   │   └── friend.go
+│   │   ├── session.go
+│   │   ├── user.go
+│   │   └── video.go
 │   ├── middleware/
-│   │   └── auth.go          # Supabase JWT検証ミドルウェア
+│   │   ├── auth.go          # Supabase JWT検証ミドルウェア（ES256）
+│   │   └── jwks.go          # JWKS公開鍵取得
 │   ├── model/               # DBのstruct定義
-│   │   └── *.go
-│   ├── repository/          # DB操作 (interfaceで抽象化)
+│   │   ├── comment.go
+│   │   ├── friend.go
+│   │   ├── post.go
+│   │   ├── session.go
+│   │   ├── user.go
+│   │   └── video.go
+│   ├── repository/          # DB操作（interfaceで抽象化）
 │   │   ├── interface.go
 │   │   └── postgres/
-│   │       └── *.go
+│   │       ├── comment.go
+│   │       ├── friend.go
+│   │       ├── post.go
+│   │       ├── session.go
+│   │       ├── user.go
+│   │       └── video.go
 │   ├── service/             # ビジネスロジック
-│   │   └── *.go
+│   │   ├── comment.go
+│   │   ├── friend.go
+│   │   ├── post.go
+│   │   ├── session.go
+│   │   ├── user.go
+│   │   └── video.go
 │   ├── storage/             # Supabase Storage クライアント
 │   │   └── supabase.go
 │   └── router/
 │       └── router.go        # ルーティング設定
 ├── db/
-│   └── migrations/          # SQLマイグレーションファイル
+│   └── migrations/          # SQLマイグレーションファイル（001〜007）
 ├── .env.example
 ├── go.mod
 └── go.sum
@@ -111,11 +158,13 @@ gofmt -w .
 
 ## APIエンドポイント
 
+認証が必要なエンドポイントは `Authorization: Bearer <Supabase JWT>` ヘッダーが必要です。
+
 ### 認証
 
 | Method | Path | 認証 | 説明 |
 |--------|------|:----:|------|
-| POST | `/api/v1/auth/signup` | 不要 | ユーザー登録 |
+| POST | `/api/v1/auth/signup` | 不要 | DBへのユーザー登録（Supabase Auth登録後に呼ぶ） |
 
 ### ユーザー設定
 
@@ -135,8 +184,8 @@ gofmt -w .
 
 | Method | Path | 説明 |
 |--------|------|------|
-| POST | `/api/v1/videos` | 動画アップロード（Multipart） |
-| GET | `/api/v1/videos` | 動画一覧取得 |
+| POST | `/api/v1/videos` | 動画アップロード（multipart/form-data, フィールド名: `video`） |
+| GET | `/api/v1/videos` | 自分の動画一覧取得 |
 | GET | `/api/v1/videos/:id` | 動画詳細取得 |
 
 ### 投稿
@@ -144,8 +193,17 @@ gofmt -w .
 | Method | Path | 説明 |
 |--------|------|------|
 | POST | `/api/v1/posts` | 投稿作成 |
-| GET | `/api/v1/posts` | フィード取得（公開範囲フィルタ） |
+| GET | `/api/v1/posts` | フィード取得（公開範囲フィルタ付き） |
 | GET | `/api/v1/posts/:id` | 投稿詳細取得 |
+| DELETE | `/api/v1/posts/:id` | 投稿削除（投稿者本人のみ） |
+
+### コメント
+
+| Method | Path | 説明 |
+|--------|------|------|
+| POST | `/api/v1/posts/:id/comments` | コメント投稿 |
+| GET | `/api/v1/posts/:id/comments` | コメント一覧取得 |
+| DELETE | `/api/v1/posts/:id/comments/:comment_id` | コメント削除（投稿者本人のみ） |
 
 ### フレンド
 
@@ -158,15 +216,24 @@ gofmt -w .
 
 ---
 
-## 認証
+## 認証フロー
 
 ```
-Authorization: Bearer <Supabase JWT>
+1. クライアント → Supabase Auth SDK
+   supabase.auth.signUp({ email, password })
+   → Supabase が auth.users に登録し JWT を返す
+
+2. クライアント → このバックエンド
+   POST /api/v1/auth/signup  (Authorization: Bearer <JWT>)
+   { id: "<supabase-uuid>", name: "...", email: "..." }
+   → public.users にプロフィール行を作成
+
+3. 以後すべてのAPIリクエストに JWT を付与
+   Authorization: Bearer <JWT>
 ```
 
-- `SUPABASE_JWT_SECRET` でHMAC-SHA256検証
-- 検証成功後、`sub` クレーム（UUID）をリクエストコンテキストに格納
-- `/api/v1/auth/signup` のみ認証スキップ
+JWT は ES256（ECDSA P-256）で署名されており、JWKS エンドポイントから取得した公開鍵で検証します。
+検証成功後、`sub` クレーム（UUID）をリクエストコンテキストに `user_id` として格納します。
 
 ---
 
@@ -184,10 +251,12 @@ Authorization: Bearer <Supabase JWT>
 |-----------|------|
 | 200 | 取得・更新成功 |
 | 201 | 作成成功 |
+| 204 | 削除成功 |
 | 400 | バリデーションエラー |
 | 401 | 認証エラー |
 | 403 | 権限エラー |
 | 404 | リソース不存在 |
+| 409 | 重複エラー（already exists） |
 | 500 | サーバーエラー |
 
 ---
@@ -203,12 +272,12 @@ CREATE TABLE users (
 );
 
 CREATE TABLE user_settings (
-  user_id              UUID PRIMARY KEY REFERENCES users(id),
-  time_pomodoro        INTEGER NOT NULL DEFAULT 25,  -- 分
-  time_short_break     INTEGER NOT NULL DEFAULT 5,
-  time_long_break      INTEGER NOT NULL DEFAULT 15,
+  user_id               UUID PRIMARY KEY REFERENCES users(id),
+  time_pomodoro         INTEGER NOT NULL DEFAULT 25,
+  time_short_break      INTEGER NOT NULL DEFAULT 5,
+  time_long_break       INTEGER NOT NULL DEFAULT 15,
   is_auto_start_session BOOLEAN NOT NULL DEFAULT false,
-  long_break_interval  INTEGER NOT NULL DEFAULT 4
+  long_break_interval   INTEGER NOT NULL DEFAULT 4
 );
 
 CREATE TABLE pomodoro_sessions (
@@ -239,6 +308,14 @@ CREATE TABLE posts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE comments (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id    UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content    TEXT NOT NULL CHECK (char_length(content) <= 10000),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TYPE friendship_status AS ENUM ('pending', 'accepted', 'blocked');
 
 CREATE TABLE friendships (
@@ -255,7 +332,6 @@ CREATE TABLE friendships (
 
 ## TODO
 
-- 動画バリデーション: サイズ上限・許容フォーマット
-- フィードのソートロジック（フレンド投稿と公開投稿の混在方法）
 - サムネイル自動生成（ffmpeg連携 or クライアント側生成）
 - レート制限
+- フィードのページネーション

@@ -19,7 +19,7 @@ func NewPostHandler(postSvc *service.PostService) *PostHandler {
 
 type createPostRequest struct {
 	VideoID    string `json:"video_id" binding:"required"`
-	Content    string `json:"content"`
+	Content    string `json:"content" binding:"max=10000"`
 	Visibility string `json:"visibility"`
 }
 
@@ -102,4 +102,28 @@ func (h *PostHandler) Get(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": post})
+}
+
+func (h *PostHandler) Delete(c *gin.Context) {
+	userID := c.MustGet("user_id").(uuid.UUID)
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := h.postSvc.Delete(c.Request.Context(), userID, id); err != nil {
+		switch err.Error() {
+		case "post not found":
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		case "forbidden: post does not belong to you":
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			handleServiceError(c, err)
+		}
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

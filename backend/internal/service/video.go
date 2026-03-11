@@ -20,9 +20,11 @@ func NewVideoService(repo repository.VideoRepository, storage *storage.SupabaseS
 	return &VideoService{repo: repo, storage: storage}
 }
 
-func (s *VideoService) Upload(ctx context.Context, userID uuid.UUID, fileName string, data []byte) (*model.Video, error) {
-	uniqueName := fmt.Sprintf("%s/%s", userID.String(), fileName)
-	storageURL, err := s.storage.UploadVideo(ctx, uniqueName, data)
+func (s *VideoService) Upload(ctx context.Context, userID uuid.UUID, contentType string, data []byte) (*model.Video, error) {
+	// ユーザー入力ファイル名は使わず UUID をファイル名として使用（パストラバーサル対策）
+	fileName := fmt.Sprintf("%s/%s.mp4", userID.String(), uuid.New().String())
+
+	storageURL, err := s.storage.UploadVideo(ctx, fileName, contentType, data)
 	if err != nil {
 		return nil, err
 	}

@@ -18,8 +18,8 @@ func NewAuthHandler(userSvc *service.UserService) *AuthHandler {
 
 type signupRequest struct {
 	ID    string `json:"id" binding:"required"`
-	Name  string `json:"name" binding:"required"`
-	Email string `json:"email" binding:"required,email"`
+	Name  string `json:"name" binding:"required,max=255"`
+	Email string `json:"email" binding:"required,email,max=255"`
 }
 
 func (h *AuthHandler) Signup(c *gin.Context) {

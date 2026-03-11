@@ -26,6 +26,9 @@ func (r *postRepository) Create(ctx context.Context, p *model.Post) error {
 }
 
 func (r *postRepository) ListFeed(ctx context.Context, userID uuid.UUID) ([]*model.Post, error) {
+	// friends の双方向チェック:
+	//   - 自分が follower で accepted (自分が申請して相手が承認)
+	//   - 自分が following で accepted (相手が申請して自分が承認)
 	rows, err := r.db.Query(ctx,
 		`SELECT id, user_id, video_id, content, visibility, created_at
 		 FROM posts
@@ -34,6 +37,9 @@ func (r *postRepository) ListFeed(ctx context.Context, userID uuid.UUID) ([]*mod
 		    OR (visibility = 'friends' AND user_id IN (
 		         SELECT following_id FROM friendships
 		         WHERE follower_id = $1 AND status = 'accepted'
+		         UNION
+		         SELECT follower_id FROM friendships
+		         WHERE following_id = $1 AND status = 'accepted'
 		       ))
 		 ORDER BY created_at DESC`, userID,
 	)
@@ -63,4 +69,9 @@ func (r *postRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Pos
 		return nil, err
 	}
 	return p, nil
+}
+
+func (r *postRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM posts WHERE id = $1`, id)
+	return err
 }

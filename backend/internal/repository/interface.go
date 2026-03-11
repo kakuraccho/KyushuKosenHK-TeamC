@@ -29,6 +29,14 @@ type PostRepository interface {
 	Create(ctx context.Context, post *model.Post) error
 	ListFeed(ctx context.Context, userID uuid.UUID) ([]*model.Post, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*model.Post, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type CommentRepository interface {
+	Create(ctx context.Context, comment *model.Comment) error
+	ListByPostID(ctx context.Context, postID uuid.UUID) ([]*model.Comment, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*model.Comment, error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type FriendRepository interface {

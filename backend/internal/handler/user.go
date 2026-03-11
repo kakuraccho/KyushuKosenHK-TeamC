@@ -30,11 +30,11 @@ func (h *UserHandler) GetSettings(c *gin.Context) {
 }
 
 type updateSettingsRequest struct {
-	TimePomodoro       int  `json:"time_pomodoro" binding:"min=1"`
-	TimeShortBreak     int  `json:"time_short_break" binding:"min=1"`
-	TimeLongBreak      int  `json:"time_long_break" binding:"min=1"`
+	TimePomodoro       int  `json:"time_pomodoro" binding:"min=1,max=3600"`
+	TimeShortBreak     int  `json:"time_short_break" binding:"min=1,max=3600"`
+	TimeLongBreak      int  `json:"time_long_break" binding:"min=1,max=3600"`
 	IsAutoStartSession bool `json:"is_auto_start_session"`
-	LongBreakInterval  int  `json:"long_break_interval" binding:"min=1"`
+	LongBreakInterval  int  `json:"long_break_interval" binding:"min=1,max=100"`
 }
 
 func (h *UserHandler) UpdateSettings(c *gin.Context) {

@@ -22,7 +22,7 @@ func NewSupabaseStorage(baseURL, serviceRoleKey, bucketName string) *SupabaseSto
 	}
 }
 
-func (s *SupabaseStorage) UploadVideo(ctx context.Context, fileName string, data []byte) (string, error) {
+func (s *SupabaseStorage) UploadVideo(ctx context.Context, fileName string, contentType string, data []byte) (string, error) {
 	url := fmt.Sprintf("%s/storage/v1/object/%s/%s", s.baseURL, s.bucketName, fileName)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
@@ -30,7 +30,7 @@ func (s *SupabaseStorage) UploadVideo(ctx context.Context, fileName string, data
 		return "", fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+s.serviceRoleKey)
-	req.Header.Set("Content-Type", "video/mp4")
+	req.Header.Set("Content-Type", contentType)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

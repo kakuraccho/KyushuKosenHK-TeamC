@@ -14,6 +14,7 @@ type Handlers struct {
 	Session *handler.SessionHandler
 	Video   *handler.VideoHandler
 	Post    *handler.PostHandler
+	Comment *handler.CommentHandler
 	Friend  *handler.FriendHandler
 }
 
@@ -60,6 +61,10 @@ func NewRouter(h Handlers, pubKey *ecdsa.PublicKey) *gin.Engine {
 			posts.POST("", h.Post.Create)
 			posts.GET("", h.Post.Feed)
 			posts.GET("/:id", h.Post.Get)
+			posts.DELETE("/:id", h.Post.Delete)
+			posts.POST("/:id/comments", h.Comment.Create)
+			posts.GET("/:id/comments", h.Comment.List)
+			posts.DELETE("/:id/comments/:comment_id", h.Comment.Delete)
 		}
 
 		// フレンド

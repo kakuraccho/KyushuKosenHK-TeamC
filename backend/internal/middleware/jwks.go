@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/base64"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"time"
 )
 
 type jwk struct {
@@ -23,7 +25,14 @@ type jwksResponse struct {
 
 // FetchECPublicKey は JWKS エンドポイントから EC P-256 公開鍵を取得する。
 func FetchECPublicKey(jwksURL string) (*ecdsa.PublicKey, error) {
-	resp, err := http.Get(jwksURL) //nolint:gosec,noctx
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jwksURL, nil) //nolint:gosec
+	if err != nil {
+		return nil, fmt.Errorf("create jwks request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetch jwks: %w", err)
 	}

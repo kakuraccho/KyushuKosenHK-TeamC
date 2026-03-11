@@ -11,6 +11,13 @@ import (
 
 const maxVideoSize = 100 << 20 // 100MB
 
+var allowedVideoMIME = map[string]bool{
+	"video/mp4":       true,
+	"video/quicktime": true, // .mov
+	"video/x-msvideo": true, // .avi
+	"video/webm":      true,
+}
+
 type VideoHandler struct {
 	videoSvc *service.VideoService
 }
@@ -24,7 +31,7 @@ func (h *VideoHandler) Upload(c *gin.Context) {
 
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxVideoSize)
 
-	file, header, err := c.Request.FormFile("video")
+	file, _, err := c.Request.FormFile("video")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "video file required"})
 		return
@@ -37,7 +44,14 @@ func (h *VideoHandler) Upload(c *gin.Context) {
 		return
 	}
 
-	video, err := h.videoSvc.Upload(c.Request.Context(), userID, header.Filename, data)
+	// MIME タイプを先頭 512 バイトで検出してホワイトリスト検証
+	mimeType := http.DetectContentType(data)
+	if !allowedVideoMIME[mimeType] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported video format"})
+		return
+	}
+
+	video, err := h.videoSvc.Upload(c.Request.Context(), userID, mimeType, data)
 	if err != nil {
 		handleServiceError(c, err)
 		return

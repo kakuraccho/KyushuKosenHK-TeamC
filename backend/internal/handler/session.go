@@ -17,7 +17,7 @@ func NewSessionHandler(sessionSvc *service.SessionService) *SessionHandler {
 }
 
 type createSessionRequest struct {
-	Duration    int  `json:"duration" binding:"required,min=1"`
+	Duration    int  `json:"duration" binding:"required,min=1,max=86400"`
 	IsCompleted bool `json:"is_completed"`
 }
 

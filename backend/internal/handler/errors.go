@@ -22,6 +22,5 @@ func handleServiceError(c *gin.Context, err error) {
 		}
 		return
 	}
-	// service 層から返る意味のあるエラーメッセージはそのまま使用
-	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 }

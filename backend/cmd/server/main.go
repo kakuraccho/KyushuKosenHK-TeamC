@@ -57,6 +57,7 @@ func main() {
 	sessionRepo := postgres.NewSessionRepository(db)
 	videoRepo := postgres.NewVideoRepository(db)
 	postRepo := postgres.NewPostRepository(db)
+	commentRepo := postgres.NewCommentRepository(db)
 	friendRepo := postgres.NewFriendRepository(db)
 
 	// Storage
@@ -67,6 +68,7 @@ func main() {
 	sessionSvc := service.NewSessionService(sessionRepo)
 	videoSvc := service.NewVideoService(videoRepo, supabaseStorage)
 	postSvc := service.NewPostService(postRepo, videoRepo)
+	commentSvc := service.NewCommentService(commentRepo, postRepo)
 	friendSvc := service.NewFriendService(friendRepo)
 
 	// Handler
@@ -76,6 +78,7 @@ func main() {
 		Session: handler.NewSessionHandler(sessionSvc),
 		Video:   handler.NewVideoHandler(videoSvc),
 		Post:    handler.NewPostHandler(postSvc),
+		Comment: handler.NewCommentHandler(commentSvc),
 		Friend:  handler.NewFriendHandler(friendSvc),
 	}
 
