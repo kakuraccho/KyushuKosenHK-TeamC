@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,6 +34,7 @@ func main() {
 
 	expectedIssuer := mustEnv("SUPABASE_JWT_ISSUER")
 	expectedAudience := getEnv("SUPABASE_JWT_AUDIENCE", "authenticated")
+	allowOrigins := strings.Split(getEnv("CORS_ALLOW_ORIGINS", "http://localhost:3000"), ",")
 
 	// JWKS から EC 公開鍵を取得
 	keys, err := middleware.FetchECPublicKeys(jwksURL)
@@ -97,7 +99,7 @@ func main() {
 		Friend:  handler.NewFriendHandler(friendSvc),
 	}
 
-	r := router.NewRouter(handlers, keys, expectedIssuer, expectedAudience)
+	r := router.NewRouter(handlers, keys, expectedIssuer, expectedAudience, allowOrigins)
 
 	srv := &http.Server{
 		Addr:              ":" + port,
