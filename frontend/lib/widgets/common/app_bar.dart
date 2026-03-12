@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../constants/app_colors.dart';
 
 class FocusAppBar extends StatelessWidget {
@@ -46,7 +47,38 @@ class FocusAppBar extends StatelessWidget {
                     color: AppColors.onSurface,
                     size: 24,
                   ),
-                  onPressed: () {},
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: AppColors.surfaceContainer,
+                        title: const Text(
+                          'ログアウト',
+                          style: TextStyle(color: AppColors.onSurface),
+                        ),
+                        content: const Text(
+                          'ログアウトしますか？',
+                          style: TextStyle(color: AppColors.onSurfaceVariant),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('キャンセル'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text(
+                              'ログアウト',
+                              style: TextStyle(color: Colors.redAccent),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      await Supabase.instance.client.auth.signOut();
+                    }
+                  },
                 ),
               ),
             ],

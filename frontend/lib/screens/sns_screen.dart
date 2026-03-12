@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:video_player/video_player.dart';
 import '../constants/app_colors.dart';
 import '../features/sns/post_model.dart';
 import '../features/sns/sns_providers.dart';
+import '../features/video/video_model.dart';
+import '../features/video/video_provider.dart';
+import '../features/video/video_repository.dart';
 import '../widgets/common/app_bar.dart';
 
 class SnsScreen extends ConsumerStatefulWidget {
@@ -14,6 +18,18 @@ class SnsScreen extends ConsumerStatefulWidget {
 
 class _SnsScreenState extends ConsumerState<SnsScreen> {
   final PageController _pageController = PageController();
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController.addListener(() {
+      final page = _pageController.page?.round() ?? 0;
+      if (page != _currentPage) {
+        setState(() => _currentPage = page);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -91,17 +107,17 @@ class _SnsScreenState extends ConsumerState<SnsScreen> {
                         ),
                       );
                     }
-                    return Padding(
+                    return PageView.builder(
                       key: const ValueKey('data'),
-                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
-                      child: PageView.builder(
-                        controller: _pageController,
-                        scrollDirection: Axis.vertical,
-                        itemCount: posts.length,
-                        itemBuilder: (context, index) {
-                          return _PostCard(post: posts[index]);
-                        },
-                      ),
+                      controller: _pageController,
+                      scrollDirection: Axis.vertical,
+                      itemCount: posts.length,
+                      itemBuilder: (context, index) {
+                        return _PostCard(
+                          post: posts[index],
+                          isActive: index == _currentPage,
+                        );
+                      },
                     );
                   },
                 ),
@@ -136,43 +152,132 @@ class _SnsScreenState extends ConsumerState<SnsScreen> {
   }
 }
 
-class _PostCard extends StatelessWidget {
-  const _PostCard({required this.post});
+// ─────────────────────────────────────────
+// PostCard with video playback
+// ─────────────────────────────────────────
+
+class _PostCard extends ConsumerStatefulWidget {
+  const _PostCard({required this.post, required this.isActive});
 
   final Post post;
+  final bool isActive;
 
-  static String _formatCount(int count) {
-    if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
+  @override
+  ConsumerState<_PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends ConsumerState<_PostCard> {
+  VideoPlayerController? _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initVideo();
+  }
+
+  Future<void> _initVideo() async {
+    try {
+      final video = await ref
+          .read(videoRepositoryProvider)
+          .fetchVideo(widget.post.videoId);
+
+      final controller =
+          VideoPlayerController.networkUrl(Uri.parse(video.storageUrl));
+      _controller = controller;
+      await controller.initialize();
+      if (!mounted) return;
+      await controller.setLooping(true);
+      if (widget.isActive) {
+        await controller.play();
+      }
+      setState(() => _initialized = true);
+    } catch (e) {
+      debugPrint('_initVideo failed: $e');
     }
-    return count.toString();
+  }
+
+  @override
+  void didUpdateWidget(_PostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive != widget.isActive) {
+      if (widget.isActive) {
+        _controller?.play();
+      } else {
+        _controller?.pause();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _togglePlayPause() {
+    final c = _controller;
+    if (c == null) return;
+    setState(() {
+      if (c.value.isPlaying) {
+        c.pause();
+      } else {
+        c.play();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(color: AppColors.thumbnailBg),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _ReelsOverlay(post: post, formatCount: _formatCount),
-          ),
-        ],
+    return GestureDetector(
+      onTap: _togglePlayPause,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _initialized && _controller != null
+                ? FittedBox(
+                    fit: BoxFit.cover,
+                    clipBehavior: Clip.hardEdge,
+                    child: SizedBox(
+                      width: _controller!.value.size.width,
+                      height: _controller!.value.size.height,
+                      child: VideoPlayer(_controller!),
+                    ),
+                  )
+                : Container(color: AppColors.thumbnailBg),
+            if (_initialized &&
+                _controller != null &&
+                !_controller!.value.isPlaying)
+              const Center(
+                child: Icon(
+                  Icons.play_circle_outline,
+                  size: 64,
+                  color: Colors.white54,
+                ),
+              ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _ReelsOverlay(post: widget.post),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+// ─────────────────────────────────────────
+// Overlay UI
+// ─────────────────────────────────────────
+
 class _ReelsOverlay extends StatelessWidget {
-  const _ReelsOverlay({required this.post, required this.formatCount});
+  const _ReelsOverlay({required this.post});
 
   final Post post;
-  final String Function(int) formatCount;
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +288,7 @@ class _ReelsOverlay extends StatelessWidget {
         children: [
           Expanded(child: _ReelsLeftBar(post: post)),
           const SizedBox(width: 14),
-          _ReelsRightBar(post: post, formatCount: formatCount),
+          const _ReelsRightBar(),
         ],
       ),
     );
@@ -219,7 +324,7 @@ class _ReelsLeftBar extends StatelessWidget {
             const SizedBox(width: 10),
             Flexible(
               child: Text(
-                post.userName,
+                post.userName ?? 'testuser',
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
@@ -230,7 +335,8 @@ class _ReelsLeftBar extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.25),
@@ -248,17 +354,19 @@ class _ReelsLeftBar extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        Text(
-          post.comment,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.white,
-            letterSpacing: -0.14,
+        if (post.content != null && post.content!.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            post.content!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.white,
+              letterSpacing: -0.14,
+            ),
           ),
-        ),
+        ],
         const SizedBox(height: 14),
       ],
     );
@@ -266,57 +374,26 @@ class _ReelsLeftBar extends StatelessWidget {
 }
 
 class _ReelsRightBar extends StatelessWidget {
-  const _ReelsRightBar({required this.post, required this.formatCount});
-
-  final Post post;
-  final String Function(int) formatCount;
+  const _ReelsRightBar();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _ReelAction(
-          icon: Icons.favorite_border,
-          count: formatCount(post.likeCount),
-        ),
-        const SizedBox(height: 23),
-        _ReelAction(
-          icon: Icons.chat_bubble_outline,
-          count: formatCount(post.commentCount),
-        ),
-        const SizedBox(height: 23),
-        const Icon(Icons.more_horiz, size: 15, color: Colors.white),
+        Icon(Icons.favorite_border, size: 23, color: Colors.white),
+        SizedBox(height: 23),
+        Icon(Icons.chat_bubble_outline, size: 23, color: Colors.white),
+        SizedBox(height: 23),
+        Icon(Icons.more_horiz, size: 15, color: Colors.white),
       ],
     );
   }
 }
 
-class _ReelAction extends StatelessWidget {
-  final IconData icon;
-  final String count;
-
-  const _ReelAction({required this.icon, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, size: 23, color: Colors.white),
-        const SizedBox(height: 12),
-        Text(
-          count,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-            letterSpacing: -0.24,
-          ),
-        ),
-      ],
-    );
-  }
-}
+// ─────────────────────────────────────────
+// Post Form
+// ─────────────────────────────────────────
 
 class _PostFormBottomSheet extends ConsumerStatefulWidget {
   const _PostFormBottomSheet();
@@ -327,28 +404,30 @@ class _PostFormBottomSheet extends ConsumerStatefulWidget {
 }
 
 class _PostFormBottomSheetState extends ConsumerState<_PostFormBottomSheet> {
-  final _commentController = TextEditingController();
+  final _contentController = TextEditingController();
   String _visibility = 'public';
-  bool _videoSelected = false;
+  VideoModel? _selectedVideo;
   bool _isSubmitting = false;
 
   @override
   void dispose() {
-    _commentController.dispose();
+    _contentController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    final comment = _commentController.text.trim();
-    if (comment.isEmpty) return;
+    final video = _selectedVideo;
+    if (video == null) return;
 
     setState(() => _isSubmitting = true);
 
     try {
       await ref.read(feedProvider.notifier).createPost(
-            comment: comment,
+            videoId: video.id,
+            content: _contentController.text.trim().isEmpty
+                ? null
+                : _contentController.text.trim(),
             visibility: _visibility,
-            videoUrl: _videoSelected ? 'mock_video.mp4' : null,
           );
       if (!mounted) return;
       Navigator.pop(context);
@@ -370,6 +449,7 @@ class _PostFormBottomSheetState extends ConsumerState<_PostFormBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final videosAsync = ref.watch(videoListProvider);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
@@ -398,11 +478,11 @@ class _PostFormBottomSheetState extends ConsumerState<_PostFormBottomSheet> {
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _commentController,
+            controller: _contentController,
             maxLines: 3,
             style: const TextStyle(color: AppColors.onSurface),
             decoration: InputDecoration(
-              hintText: 'Write a comment...',
+              hintText: 'Write a caption...',
               hintStyle: TextStyle(
                 color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
               ),
@@ -419,10 +499,7 @@ class _PostFormBottomSheetState extends ConsumerState<_PostFormBottomSheet> {
             children: [
               const Text(
                 'Visibility: ',
-                style: TextStyle(
-                  color: AppColors.onSurface,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: AppColors.onSurface, fontSize: 14),
               ),
               const SizedBox(width: 8),
               DropdownButton<String>(
@@ -442,47 +519,71 @@ class _PostFormBottomSheetState extends ConsumerState<_PostFormBottomSheet> {
                   DropdownMenuItem(value: 'private', child: Text('Private')),
                 ],
                 onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _visibility = value);
-                  }
+                  if (value != null) setState(() => _visibility = value);
                 },
               ),
             ],
           ),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () {
-              setState(() => _videoSelected = !_videoSelected);
+          videosAsync.when(
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: AppColors.secondary),
+            ),
+            error: (_, _) => const Text(
+              'Failed to load videos',
+              style: TextStyle(color: AppColors.onSurfaceVariant),
+            ),
+            data: (videos) {
+              if (videos.isEmpty) {
+                return const Text(
+                  'No videos available. Record a timelapse first.',
+                  style: TextStyle(
+                    color: AppColors.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
+                );
+              }
+              return DropdownButtonFormField<VideoModel>(
+                initialValue: _selectedVideo,
+                dropdownColor: AppColors.surfaceContainer,
+                style:
+                    const TextStyle(color: AppColors.onSurface, fontSize: 14),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: AppColors.bg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  hintText: 'Select a video',
+                  hintStyle: TextStyle(
+                    color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.video_library,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                items: videos
+                    .map(
+                      (v) => DropdownMenuItem(
+                        value: v,
+                        child: Text(
+                          v.id.substring(0, 8),
+                          style:
+                              const TextStyle(color: AppColors.onSurface),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedVideo = v),
+              );
             },
-            icon: Icon(
-              _videoSelected ? Icons.check_circle : Icons.video_library,
-              color: _videoSelected
-                  ? AppColors.secondary
-                  : AppColors.onSurfaceVariant,
-            ),
-            label: Text(
-              _videoSelected ? 'mock_video.mp4' : 'Select video',
-              style: TextStyle(
-                color: _videoSelected
-                    ? AppColors.secondary
-                    : AppColors.onSurfaceVariant,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(
-                color: _videoSelected
-                    ? AppColors.secondary
-                    : AppColors.secondaryContainer,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: _isSubmitting ? null : _submit,
+            onPressed:
+                (_isSubmitting || _selectedVideo == null) ? null : _submit,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.secondaryContainer,
               foregroundColor: AppColors.onSurface,

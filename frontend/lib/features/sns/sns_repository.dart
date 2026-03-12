@@ -17,7 +17,7 @@ class SnsRepository {
     try {
       final response = await _dio.get('/api/v1/posts');
       final data = response.data as Map<String, dynamic>;
-      final postsJson = data['posts'] as List<dynamic>;
+      final postsJson = (data['data'] as List<dynamic>?) ?? [];
       return postsJson
           .map((json) => Post.fromJson(json as Map<String, dynamic>))
           .toList();
@@ -28,20 +28,20 @@ class SnsRepository {
   }
 
   Future<Post> createPost({
-    required String comment,
+    required String videoId,
+    String? content,
     required String visibility,
-    String? videoUrl,
   }) async {
     try {
-      final response = await _dio.post(
-        '/api/v1/posts',
-        data: {
-          'comment': comment,
-          'visibility': visibility,
-          'video_url': videoUrl,
-        },
-      );
-      return Post.fromJson(response.data as Map<String, dynamic>);
+      final body = <String, dynamic>{
+        'video_id': videoId,
+        'visibility': visibility,
+      };
+      if (content != null && content.isNotEmpty) body['content'] = content;
+
+      final response = await _dio.post('/api/v1/posts', data: body);
+      final data = response.data as Map<String, dynamic>;
+      return Post.fromJson(data['data'] as Map<String, dynamic>);
     } on DioException catch (e) {
       debugPrint('createPost failed: ${e.message}');
       rethrow;

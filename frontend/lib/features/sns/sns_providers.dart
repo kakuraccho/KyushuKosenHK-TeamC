@@ -24,22 +24,21 @@ class FeedNotifier extends AsyncNotifier<List<Post>> {
   }
 
   Future<void> createPost({
-    required String comment,
+    required String videoId,
+    String? content,
     required String visibility,
-    String? videoUrl,
   }) async {
     final repository = ref.read(snsRepositoryProvider);
     try {
       final newPost = await repository.createPost(
-        comment: comment,
+        videoId: videoId,
+        content: content,
         visibility: visibility,
-        videoUrl: videoUrl,
       );
       final currentPosts = state.valueOrNull ?? [];
       state = AsyncValue.data([newPost, ...currentPosts]);
     } catch (e) {
       debugPrint('createPost in notifier failed: $e');
-      // Re-throw so the caller can handle the error for SnackBar display
       rethrow;
     }
   }

@@ -39,6 +39,10 @@ dependencies:
   flutter_dotenv: ^5.0.0
   flutter_local_notifications: ^18.0.0
   camera: ^0.11.0
+  fl_chart: ^0.70.2
+  ffmpeg_kit_flutter_new: ^4.1.0
+  path_provider: ^2.1.4
+  video_player: ^2.9.2
 
 dev_dependencies:
   flutter_test:
