@@ -14,11 +14,12 @@ class VideoListNotifier extends AsyncNotifier<List<VideoModel>> {
     return ref.read(videoRepositoryProvider).fetchVideos();
   }
 
-  Future<void> uploadVideo(String filePath) async {
+  Future<VideoModel> uploadVideo(String filePath) async {
     final repo = ref.read(videoRepositoryProvider);
     final newVideo = await repo.uploadVideo(filePath);
     final current = state.valueOrNull ?? [];
     state = AsyncValue.data([newVideo, ...current]);
+    return newVideo;
   }
 
   Future<void> refresh() async {

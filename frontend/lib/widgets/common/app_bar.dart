@@ -1,11 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../constants/app_colors.dart';
+import '../../screens/friends_screen.dart';
+import '../../screens/settings_screen.dart';
 
 class FocusAppBar extends StatelessWidget {
   final String title;
 
   const FocusAppBar({super.key, required this.title});
+
+  void _showHamburgerMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.onSurfaceVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined,
+                  color: AppColors.onSurface),
+              title: const Text('User Settings',
+                  style: TextStyle(color: AppColors.onSurface)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const SettingsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.people_outline,
+                  color: AppColors.onSurface),
+              title: const Text('Friends',
+                  style: TextStyle(color: AppColors.onSurface)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const FriendsScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +85,9 @@ class FocusAppBar extends StatelessWidget {
               Positioned(
                 left: 4,
                 child: IconButton(
-                  icon: const Icon(Icons.menu, color: AppColors.onSurface, size: 24),
-                  onPressed: () {},
+                  icon: const Icon(Icons.menu,
+                      color: AppColors.onSurface, size: 24),
+                  onPressed: () => _showHamburgerMenu(context),
                 ),
               ),
               Text(
@@ -53,22 +112,23 @@ class FocusAppBar extends StatelessWidget {
                       builder: (ctx) => AlertDialog(
                         backgroundColor: AppColors.surfaceContainer,
                         title: const Text(
-                          'ログアウト',
+                          'Logout',
                           style: TextStyle(color: AppColors.onSurface),
                         ),
                         content: const Text(
-                          'ログアウトしますか？',
-                          style: TextStyle(color: AppColors.onSurfaceVariant),
+                          'Are you sure you want to log out?',
+                          style:
+                              TextStyle(color: AppColors.onSurfaceVariant),
                         ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('キャンセル'),
+                            child: const Text('Cancel'),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, true),
                             child: const Text(
-                              'ログアウト',
+                              'Logout',
                               style: TextStyle(color: Colors.redAccent),
                             ),
                           ),

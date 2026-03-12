@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
+import '../../features/video/video_model.dart';
 import '../../features/video/video_provider.dart';
+import '../../widgets/common/post_form_sheet.dart';
 import '../../widgets/common/video_tile.dart';
 
 class VideosView extends ConsumerWidget {
@@ -26,7 +28,8 @@ class VideosView extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               ElevatedButton.icon(
-                onPressed: () => ref.read(videoListProvider.notifier).refresh(),
+                onPressed: () =>
+                    ref.read(videoListProvider.notifier).refresh(),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
                 style: ElevatedButton.styleFrom(
@@ -57,12 +60,53 @@ class VideosView extends ConsumerWidget {
               childAspectRatio: 121 / 214,
             ),
             itemCount: videos.length,
-            itemBuilder: (context, index) => VideoTile(
-              borderRadius: 28,
-              storageUrl: videos[index].storageUrl,
-            ),
+            itemBuilder: (context, index) =>
+                _VideoGridItem(video: videos[index]),
           );
         },
+      ),
+    );
+  }
+}
+
+class _VideoGridItem extends StatelessWidget {
+  const _VideoGridItem({required this.video});
+  final VideoModel video;
+
+  void _showPostForm(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => PostFormSheet(initialVideo: video),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showPostForm(context),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          VideoTile(borderRadius: 28, storageUrl: video.storageUrl),
+          Positioned(
+            right: 6,
+            bottom: 6,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.55),
+                shape: BoxShape.circle,
+              ),
+              child:
+                  const Icon(Icons.upload, size: 14, color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
