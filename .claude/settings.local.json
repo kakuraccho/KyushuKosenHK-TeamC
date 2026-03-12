@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(cd \"C:\\\\Users\\\\kakur\\\\code_vs\\\\---hachathon---\\\\KyushuKosenHK-TeamC\\\\frontend\" && flutter pub get 2>&1)",
-      "Bash(cd \"C:\\\\Users\\\\kakur\\\\code_vs\\\\---hachathon---\\\\KyushuKosenHK-TeamC\\\\frontend\" && flutter analyze lib/features/shoot/ lib/screens/shoot_screen.dart lib/main.dart 2>&1)"
+      "Bash(cd \"C:\\\\Users\\\\kakur\\\\code_vs\\\\---hachathon---\\\\KyushuKosenHK-TeamC\\\\frontend\" && flutter analyze lib/features/shoot/ lib/screens/shoot_screen.dart lib/main.dart 2>&1)",
+      "Bash(*)"
     ]
   }
 }
