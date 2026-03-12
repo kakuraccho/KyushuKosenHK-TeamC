@@ -28,8 +28,6 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
   @override
   void initState() {
     super.initState();
-    // 常にバックグラウンドで初期化しておき、非アクティブ時はすぐpauseする。
-    // これにより初回タブ表示時の待ち時間を最小化する。
     _initCamera();
   }
 
@@ -37,16 +35,11 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
   void didUpdateWidget(ShootScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive && !oldWidget.isActive) {
-      // pause済みのときだけ resumePreview を呼ぶ。
-      // 初回遷移時は一度も pause していないため、呼ぶと例外が出る。
       if (_isPaused) {
         _cameraController?.resumePreview();
         _isPaused = false;
       }
     } else if (!widget.isActive && oldWidget.isActive) {
-      // タブが非アクティブになったら映像ストリームのみ停止。
-      // dispose せず pausePreview するだけなので、Texture へのフレーム更新が止まり
-      // 他画面のちらつきが解消される。再開も resumePreview で即座に戻る。
       _captureTimer?.cancel();
       _captureTimer = null;
       if (mounted) setState(() => _isRecording = false);
@@ -57,7 +50,6 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
   }
 
   Future<void> _initCamera() async {
-    // アプリ起動時にキャッシュ済みのリストを使い、未取得の場合のみ再取得する
     final cameras =
         cachedCameras.isNotEmpty ? cachedCameras : await availableCameras();
     if (cameras.isEmpty) return;
@@ -131,7 +123,6 @@ class _ShootScreenState extends ConsumerState<ShootScreen> {
     return Column(
       children: [
         const FocusAppBar(title: 'Shoot'),
-        // AppBar の内側 top パディング (5px) と同じ間隔
         const SizedBox(height: 5),
         Expanded(
           child: Padding(
@@ -194,8 +185,6 @@ class _PomodoroTimer extends ConsumerWidget {
   }
 }
 
-/// ボタン部分を別ウィジェットに分離することで、_isRecording 変化時に
-/// カメラプレビュー側が rebuild されるのを防ぐ。
 class _RecordButtonBar extends StatelessWidget {
   const _RecordButtonBar({
     required this.isRecording,

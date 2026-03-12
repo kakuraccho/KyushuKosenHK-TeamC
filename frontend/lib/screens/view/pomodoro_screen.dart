@@ -53,7 +53,7 @@ class _WeekMonthYearToggle extends StatefulWidget {
 }
 
 class _WeekMonthYearToggleState extends State<_WeekMonthYearToggle> {
-  int _selected = 0; // 0=Week, 1=Month, 2=Year
+  int _selected = 0;
 
   @override
   Widget build(BuildContext context) {

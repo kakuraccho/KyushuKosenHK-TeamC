@@ -141,7 +141,7 @@ class _PostCard extends StatelessWidget {
 
   final Post post;
 
-  String _formatCount(int count) {
+  static String _formatCount(int count) {
     if (count >= 1000) {
       return '${(count / 1000).toStringAsFixed(1)}K';
     }

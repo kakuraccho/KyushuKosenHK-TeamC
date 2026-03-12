@@ -5,7 +5,7 @@ import '../../core/api/api_client.dart';
 import 'post_model.dart';
 
 final snsRepositoryProvider = Provider<SnsRepository>((ref) {
-  return SnsRepository(ref.watch(apiClientProvider));
+  return SnsRepository(ref.read(apiClientProvider));
 });
 
 class SnsRepository {

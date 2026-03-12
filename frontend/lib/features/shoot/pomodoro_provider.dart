@@ -45,7 +45,6 @@ class PomodoroNotifier extends StateNotifier<int> {
   }
 }
 
-final pomodoroProvider =
-    StateNotifierProvider<PomodoroNotifier, int>(
+final pomodoroProvider = StateNotifierProvider<PomodoroNotifier, int>(
   (ref) => PomodoroNotifier(ref),
 );
